@@ -8,3 +8,5 @@ aqt/forms
 locale
 tools/runanki.system
 aqt/buildhash.py
+venv
+.idea

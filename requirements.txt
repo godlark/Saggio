@@ -4,3 +4,5 @@ pyaudio
 requests
 decorator
 markdown
+PyQt5-sip
+PyQt5

@@ -17,6 +17,9 @@ Anki requires:
  - mpv
  - lame
 
+On Fedora you can install them by:
+$ dnf install portaudio-devel
+
 It also requires a number of Python packages, which you can grab via pip:
 
 $ pip3 install -r requirements.txt

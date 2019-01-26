@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
@@ -9,6 +8,7 @@ from operator import itemgetter
 from heapq import *
 import datetime
 
+from anki.schedulers import register_scheduler
 from anki.utils import ids2str, intTime, fmtTimeSpan
 from anki.lang import _
 from anki.consts import *
@@ -21,6 +21,8 @@ from anki.hooks import runHook
 # positive revlog intervals are in days (rev), negative in seconds (lrn)
 # odue/odid store original due/did when cards moved to filtered deck
 
+
+@register_scheduler("Scheduler v2")
 class Scheduler:
     name = "std2"
     haveCustomStudy = True

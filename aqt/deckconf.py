@@ -186,7 +186,7 @@ class DeckConf(QDialog):
         f.revplim.setText(self.parentLimText('rev'))
         f.buryRev.setChecked(c.get("bury", True))
         f.hardFactor.setValue(int(c.get("hardFactor", 1.2)*100))
-        if self.mw.col.schedVer() == 1:
+        if self.mw.col.conf['usedScheduler'] == 'anki.Scheduler':
             f.hardFactor.setVisible(False)
             f.hardFactorLabel.setVisible(False)
         # lapse

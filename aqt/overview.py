@@ -89,7 +89,7 @@ class Overview:
             self.onStudyMore()
 
     def onUnbury(self):
-        if self.mw.col.schedVer() == 1:
+        if self.mw.col.conf['usedScheduler'] == 'anki.sched.Scheduler':
             self.mw.col.sched.unburyCardsForDeck()
             self.mw.reset()
             return
@@ -162,7 +162,7 @@ to their original deck.""")
     def _table(self):
         counts = list(self.mw.col.sched.counts())
         finished = not sum(counts)
-        if self.mw.col.schedVer() == 1:
+        if self.mw.col.conf['usedScheduler'] == 'anki.Scheduler':
             for n in range(len(counts)):
                 if counts[n] >= 1000:
                     counts[n] = "1000+"

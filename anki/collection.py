@@ -13,9 +13,11 @@ import copy
 import traceback
 
 from anki.lang import _, ngettext
+from anki.schedulers import SCHEDULERS
+from anki.schedv2 import Scheduler
 from anki.utils import ids2str, fieldChecksum, stripHTML, \
     intTime, splitFields, joinFields, maxID, json, devMode, stripHTMLMedia
-from anki.hooks import  runFilter, runHook
+from anki.hooks import runFilter, runHook
 from anki.models import ModelManager
 from anki.media import MediaManager
 from anki.decks import DeckManager
@@ -23,12 +25,11 @@ from anki.tags import TagManager
 from anki.consts import *
 from anki.errors import AnkiError
 from anki.sound import stripSounds
-import anki.latex # sets up hook
+import anki.latex  # sets up hook
 import anki.cards
 import anki.notes
 import anki.template
 import anki.find
-
 
 defaultConf = {
     # review options
@@ -44,9 +45,10 @@ defaultConf = {
     'nextPos': 1,
     'sortType': "noteFld",
     'sortBackwards': False,
-    'addToCur': True, # add new to currently selected deck?
+    'addToCur': True,  # add new to currently selected deck?
     'dayLearnFirst': False,
 }
+
 
 # this is initialized by storage.Collection
 class _Collection:
@@ -83,45 +85,16 @@ class _Collection:
     # Scheduler
     ##########################################################################
 
-    defaultSchedulerVersion = 1
-    supportedSchedulerVersions = (1, 2)
-
-    def schedVer(self):
-        ver = self.conf.get("schedVer", self.defaultSchedulerVersion)
-        if ver in self.supportedSchedulerVersions:
-            return ver
-        else:
-            raise Exception("Unsupported scheduler version")
+    defaultScheduler = ('anki.schedv2.Scheduler')
 
     def _loadScheduler(self):
-        ver = self.schedVer()
-        if ver == 1:
-            from anki.sched import Scheduler
-        elif ver == 2:
-            from anki.schedv2 import Scheduler
-
-        self.sched = Scheduler(self)
-
-    def changeSchedulerVer(self, ver):
-        if ver == self.schedVer():
-            return
-        if ver not in self.supportedSchedulerVersions:
-            raise Exception("Unsupported scheduler version")
-
-        self.modSchema(check=True)
-
-        from anki.schedv2 import Scheduler
-        v2Sched = Scheduler(self)
-
-        if ver == 1:
-            v2Sched.moveToV1()
+        sched_name = self.conf.get("usedScheduler", self.defaultScheduler)
+        if sched_name not in SCHEDULERS:
+            print("Scheduler {} doesn't exist, using the default scheduler".format(sched_name))
+            sched_cls = SCHEDULERS[self.defaultScheduler][1]
         else:
-            v2Sched.moveToV2()
-
-        self.conf['schedVer'] = ver
-        self.setMod()
-
-        self._loadScheduler()
+            sched_cls = SCHEDULERS[sched_name][1]
+        self.sched = sched_cls(self)
 
     # DB-related
     ##########################################################################
@@ -130,7 +103,7 @@ class _Collection:
         (self.crt,
          self.mod,
          self.scm,
-         self.dty, # no longer used
+         self.dty,  # no longer used
          self._usn,
          self.ls,
          self.conf,
@@ -264,10 +237,10 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
     ##########################################################################
 
     def nextID(self, type, inc=True):
-        type = "next"+type.capitalize()
+        type = "next" + type.capitalize()
         id = self.conf.get(type, 1)
         if inc:
-            self.conf[type] = id+1
+            self.conf[type] = id + 1
         return id
 
     def reset(self):
@@ -308,7 +281,7 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         return ncards
 
     def remNotes(self, ids):
-        self.remCards(self.db.list("select id from cards where nid in "+
+        self.remCards(self.db.list("select id from cards where nid in " +
                                    ids2str(ids)))
 
     def _remNotes(self, ids):
@@ -353,7 +326,7 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         dids = {}
         dues = {}
         for id, nid, ord, did, due, odue, odid in self.db.execute(
-            "select id, nid, ord, did, due, odue, odid from cards where nid in "+snids):
+                "select id, nid, ord, did, due, odue, odid from cards where nid in " + snids):
             # existing cards
             if nid not in have:
                 have[nid] = {}
@@ -382,7 +355,7 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         rem = []
         usn = self.usn()
         for nid, mid, flds in self.db.execute(
-            "select id, mid, flds from notes where id in "+snids):
+                "select id, mid, flds from notes where id in " + snids):
             model = self.models.get(mid)
             avail = self.models.availOrds(model, flds)
             did = dids.get(nid) or model['did']
@@ -479,16 +452,16 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
         if not ids:
             return
         sids = ids2str(ids)
-        nids = self.db.list("select nid from cards where id in "+sids)
+        nids = self.db.list("select nid from cards where id in " + sids)
         # remove cards
         self._logRem(ids, REM_CARD)
-        self.db.execute("delete from cards where id in "+sids)
+        self.db.execute("delete from cards where id in " + sids)
         # then notes
         if not notes:
             return
         nids = self.db.list("""
 select id from notes where id in %s and id not in (select nid from cards)""" %
-                     ids2str(nids))
+                            ids2str(nids))
         self._remNotes(nids)
 
     def emptyCids(self):
@@ -511,7 +484,7 @@ where c.nid = n.id and c.id in %s group by nid""" % ids2str(cids)):
 
     def _fieldData(self, snids):
         return self.db.execute(
-            "select id, mid, flds from notes where id in "+snids)
+            "select id, mid, flds from notes where id in " + snids)
 
     def updateFieldCache(self, nids):
         "Update field checksums and sort cache, after find&replace, etc."
@@ -565,20 +538,22 @@ where c.nid = n.id and c.id in %s group by nid""" % ids2str(cids)):
         else:
             template = model['tmpls'][0]
         fields['Card'] = template['name']
-        fields['c%d' % (data[4]+1)] = "1"
+        fields['c%d' % (data[4] + 1)] = "1"
         # render q & a
         d = dict(id=data[0])
         qfmt = qfmt or template['qfmt']
         afmt = afmt or template['afmt']
         for (type, format) in (("q", qfmt), ("a", afmt)):
             if type == "q":
-                format = re.sub("{{(?!type:)(.*?)cloze:", r"{{\1cq-%d:" % (data[4]+1), format)
+                format = re.sub("{{(?!type:)(.*?)cloze:",
+                                r"{{\1cq-%d:" % (data[4] + 1), format)
                 format = format.replace("<%cloze:", "<%%cq:%d:" % (
-                    data[4]+1))
+                        data[4] + 1))
             else:
-                format = re.sub("{{(.*?)cloze:", r"{{\1ca-%d:" % (data[4]+1), format)
+                format = re.sub("{{(.*?)cloze:", r"{{\1ca-%d:" % (data[4] + 1),
+                                format)
                 format = format.replace("<%cloze:", "<%%ca:%d:" % (
-                    data[4]+1))
+                        data[4] + 1))
                 fields['FrontSide'] = stripSounds(d['q'])
             fields = runFilter("mungeFields", fields, model, data, self)
             html = anki.template.render(format, fields)
@@ -588,8 +563,9 @@ where c.nid = n.id and c.id in %s group by nid""" % ids2str(cids)):
             if type == 'q' and model['type'] == MODEL_CLOZE:
                 if not self.models._availClozeOrds(model, data[6], False):
                     d['q'] += ("<p>" + _(
-                "Please edit this note and add some cloze deletions. (%s)") % (
-                "<a href=%s#cloze>%s</a>" % (HELP_SITE, _("help"))))
+                        "Please edit this note and add some cloze deletions. (%s)") % (
+                                       "<a href=%s#cloze>%s</a>" % (
+                               HELP_SITE, _("help"))))
         return d
 
     def _qaData(self, where=""):
@@ -734,8 +710,8 @@ or mid not in %s limit 1""" % ids2str(self.models.ids())):
             if self.db.scalar("""
 select 1 from cards where ord not in %s and nid in (
 select id from notes where mid = ?) limit 1""" %
-                               ids2str([t['ord'] for t in m['tmpls']]),
-                               m['id']):
+                              ids2str([t['ord'] for t in m['tmpls']]),
+                              m['id']):
                 return
         return True
 
@@ -753,7 +729,7 @@ select id from notes where mid not in """ + ids2str(self.models.ids()))
             problems.append(
                 ngettext("Deleted %d note with missing note type.",
                          "Deleted %d notes with missing note type.", len(ids))
-                         % len(ids))
+                % len(ids))
             self.remNotes(ids)
         # for each model
         for m in self.models.all():
@@ -817,8 +793,8 @@ select id from cards where odue > 0 and (type=1 or queue=2) and not odid""")
             problems.append(
                 ngettext("Fixed %d card with invalid properties.",
                          "Fixed %d cards with invalid properties.", cnt) % cnt)
-            self.db.execute("update cards set odue=0 where id in "+
-                ids2str(ids))
+            self.db.execute("update cards set odue=0 where id in " +
+                            ids2str(ids))
         # cards with odid set when not in a dyn deck
         dids = [id for id in self.decks.allIds() if not self.decks.isDyn(id)]
         ids = self.db.list("""
@@ -828,8 +804,8 @@ select id from cards where odid > 0 and did in %s""" % ids2str(dids))
             problems.append(
                 ngettext("Fixed %d card with invalid properties.",
                          "Fixed %d cards with invalid properties.", cnt) % cnt)
-            self.db.execute("update cards set odid=0, odue=0 where id in "+
-                ids2str(ids))
+            self.db.execute("update cards set odid=0, odue=0 where id in " +
+                            ids2str(ids))
         # tags
         self.tags.registerNotes()
         # field cache
@@ -875,14 +851,16 @@ and type = 0""", intTime(), self.usn())
     def log(self, *args, **kwargs):
         if not self._debugLog:
             return
+
         def customRepr(x):
             if isinstance(x, str):
                 return x
             return pprint.pformat(x)
+
         path, num, fn, y = traceback.extract_stack(
-            limit=2+kwargs.get("stack", 0))[0]
+            limit=2 + kwargs.get("stack", 0))[0]
         buf = "[%s] %s:%s(): %s" % (intTime(), os.path.basename(path), fn,
-                                     ", ".join([customRepr(x) for x in args]))
+                                    ", ".join([customRepr(x) for x in args]))
         self._logHnd.write(buf + "\n")
         if devMode:
             print(buf)
@@ -891,7 +869,7 @@ and type = 0""", intTime(), self.usn())
         if not self._debugLog:
             return
         lpath = re.sub(r"\.anki2$", ".log", self.path)
-        if os.path.exists(lpath) and os.path.getsize(lpath) > 10*1024*1024:
+        if os.path.exists(lpath) and os.path.getsize(lpath) > 10 * 1024 * 1024:
             lpath2 = lpath + ".old"
             if os.path.exists(lpath2):
                 os.unlink(lpath2)
@@ -909,5 +887,6 @@ and type = 0""", intTime(), self.usn())
 
     def setUserFlag(self, flag, cids):
         assert 0 <= flag <= 7
-        self.db.execute("update cards set flags = (flags & ~?) | ? where id in %s" %
-                        ids2str(cids), 0b111, flag)
+        self.db.execute(
+            "update cards set flags = (flags & ~?) | ? where id in %s" %
+            ids2str(cids), 0b111, flag)

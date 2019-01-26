@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
@@ -8,7 +7,7 @@ import itertools
 from operator import itemgetter
 from heapq import *
 
-#from anki.cards import Card
+from anki.schedulers import register_scheduler
 from anki.utils import ids2str, intTime, fmtTimeSpan
 from anki.lang import _
 from anki.consts import *
@@ -18,6 +17,8 @@ from anki.hooks import runHook
 # revlog types: 0=lrn, 1=rev, 2=relrn, 3=cram
 # positive revlog intervals are in days (rev), negative in seconds (lrn)
 
+
+@register_scheduler("Old Scheduler")
 class Scheduler:
     name = "std"
     haveCustomStudy = True

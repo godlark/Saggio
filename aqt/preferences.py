@@ -3,6 +3,8 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import datetime, time
+
+from anki.schedulers import SCHEDULERS
 from aqt.qt import *
 import anki.lang
 from aqt.utils import openFolder, showWarning, getText, openHelp, showInfo, \
@@ -89,10 +91,17 @@ class Preferences(QDialog):
         f.newSpread.setCurrentIndex(qc['newSpread'])
         f.useCurrent.setCurrentIndex(int(not qc.get("addToCur", True)))
         f.dayLearnFirst.setChecked(qc.get("dayLearnFirst", False))
-        if self.mw.col.schedVer() != 2:
-            f.dayLearnFirst.setVisible(False)
-        else:
-            f.newSched.setChecked(True)
+
+        found_sched = False
+        used_scheduler_name = str(qc.get('usedScheduler', 'anki.schedv2.Scheduler'))
+        for scheduler_name, scheduler_data in SCHEDULERS.items():
+            f.usedSched.insertItem(0, scheduler_data[0], (scheduler_name, scheduler_data[1]))
+            if scheduler_name == used_scheduler_name:
+                found_sched = True
+                f.usedSched.setCurrentIndex(0)
+        if not found_sched:
+            f.usedSched.insertItem(0, used_scheduler_name, (used_scheduler_name, None))
+            f.usedSched.setCurrentIndex(0)
 
     def updateCollection(self):
         f = self.form
@@ -117,36 +126,15 @@ class Preferences(QDialog):
         qc['collapseTime'] = f.lrnCutoff.value()*60
         qc['addToCur'] = not f.useCurrent.currentIndex()
         qc['dayLearnFirst'] = f.dayLearnFirst.isChecked()
+        qc['usedScheduler'] = f.usedSched.currentData()[0]
         self._updateDayCutoff()
-        self._updateSchedVer(f.newSched.isChecked())
         d.setMod()
-
-    # Scheduler version
-    ######################################################################
-
-    def _updateSchedVer(self, wantNew):
-        haveNew = self.mw.col.schedVer() == 2
-
-        # nothing to do?
-        if haveNew == wantNew:
-            return
-
-        if haveNew and not wantNew:
-            if not askUser(_("This will reset any cards in learning, clear filtered decks, and change the scheduler version. Proceed?")):
-                return
-            self.mw.col.changeSchedulerVer(1)
-            return
-
-        if not askUser(_("The experimental scheduler could cause incorrect scheduling. Please ensure you have read the documentation first. Proceed?")):
-            return
-
-        self.mw.col.changeSchedulerVer(2)
 
     # Day cutoff
     ######################################################################
 
     def _setupDayCutoff(self):
-        if self.mw.col.schedVer() == 2:
+        if self.mw.col.conf['usedScheduler'] == 'anki.schedv2.Scheduler':
             self._setupDayCutoffV2()
         else:
             self._setupDayCutoffV1()
@@ -159,7 +147,7 @@ class Preferences(QDialog):
         self.form.dayOffset.setValue(self.mw.col.conf.get("rollover", 4))
 
     def _updateDayCutoff(self):
-        if self.mw.col.schedVer() == 2:
+        if self.mw.col.conf['usedScheduler'] == 'anki.schedv2.Scheduler':
             self._updateDayCutoffV2()
         else:
             self._updateDayCutoffV1()

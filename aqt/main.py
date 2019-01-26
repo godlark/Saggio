@@ -242,7 +242,13 @@ close the profile or restart Anki."""))
 
         self.onOpenProfile()
 
+    def _loadSchedulers(self):
+        from anki.sched import Scheduler
+        from anki.schedv2 import Scheduler
+
     def loadProfile(self, onsuccess=None):
+        self._loadSchedulers()
+
         if not self.loadCollection():
             return
 

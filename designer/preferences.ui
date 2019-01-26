@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>423</width>
-    <height>508</height>
+    <width>450</width>
+    <height>682</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -109,11 +109,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="newSched">
-         <property name="text">
-          <string>Experimental V2 scheduler</string>
-         </property>
-        </widget>
+        <widget class="QComboBox" name="usedSched"/>
        </item>
        <item>
         <widget class="QComboBox" name="useCurrent">
@@ -487,7 +483,6 @@
   <tabstop>pastePNG</tabstop>
   <tabstop>nightMode</tabstop>
   <tabstop>dayLearnFirst</tabstop>
-  <tabstop>newSched</tabstop>
   <tabstop>useCurrent</tabstop>
   <tabstop>newSpread</tabstop>
   <tabstop>dayOffset</tabstop>

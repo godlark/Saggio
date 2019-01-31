@@ -47,7 +47,7 @@ MODEL_CLOZE = 1
 STARTING_FACTOR = 2500
 
 # deck schema & syncing vars
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 SYNC_ZIP_SIZE = int(2.5*1024*1024)
 SYNC_ZIP_COUNT = 25
 SYNC_BASE = "https://sync%s.ankiweb.net/"

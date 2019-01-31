@@ -245,6 +245,7 @@ close the profile or restart Anki."""))
     def _loadSchedulers(self):
         from anki.sched import Scheduler
         from anki.schedv2 import Scheduler
+        from anki.schedv3 import Scheduler
 
     def loadProfile(self, onsuccess=None):
         self._loadSchedulers()

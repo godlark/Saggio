@@ -1,6 +1,7 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 import math
+import pprint
 import time
 import random
 import itertools
@@ -899,12 +900,12 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
             curr_card_id = None
 
             for deck_id in decks_cards.keys():
-                if not decks_cards[deck_id]:
-                    continue
-
-                while decks_cards[deck_id][0][1] in used_cards:
+                while decks_cards[deck_id] and decks_cards[deck_id][0][1] in used_cards:
                     deck_cards_already_used[deck_id] += 1
                     decks_cards[deck_id].pop()
+
+                if not decks_cards[deck_id]:
+                    continue
 
                 pos_difference = abs(i - decks_cards[deck_id][0][0])
                 points_position_changed = 1 - ((pos_difference ** 2) / (pos_difference ** 2 + len(limited_rev_queue)))
@@ -948,7 +949,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
     # Answering a review card
     ##########################################################################
 
-    def answerRevCard(self, card, ease):
+    def _answerRevCard(self, card, ease):
         delay = 0
         early = card.odid and (card.odue > self.today)
         type = early and 3 or 1
@@ -966,6 +967,8 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         self._logRev(card, ease, delay, type)
 
     def _newFactor(self, card, ease):
+        curr_ivl = max(1000 / card.factor, card.ivl)
+
         # R = e ** (-k * t/S)
         # R for t == s should be `good` == 0.90
         # Therefor -k = ln(0.90)
@@ -977,8 +980,8 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         k = math.log(2 / (easy_lower + good_lower))
 
         delayed_by = self._daysLate(card)
-        total_time = card.ivl + delayed_by
-        predicted_R = math.exp(-k * total_time / card.ivl)
+        total_time = curr_ivl + delayed_by
+        predicted_R = math.exp(-k * total_time / curr_ivl)
 
         if predicted_R > easy_lower:
             predicted_ease = 4
@@ -1007,9 +1010,10 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
                 p = math.log(hard_lower)
         # p = -k * total_time / corrected_ivl
         corrected_ivl = -k * total_time / p
+        pprint.pprint(card)
 
-        ivl_power = math.log(card.ivl * (card.factor / 1000)) / math.log(card.factor / 1000)
-        factor_multiplier = (corrected_ivl / card.ivl) ** (1 / (ivl_power ** 0.37037))
+        ivl_power = math.log(curr_ivl * (card.factor / 1000) ** 2) / math.log(card.factor / 1000)
+        factor_multiplier = (corrected_ivl / curr_ivl) ** (1 / (ivl_power ** 0.37037))
         factor = int(card.factor * factor_multiplier)
         factor = max(1300, factor)
         factor = min(10000, factor)
@@ -1049,7 +1053,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             self._updateEarlyRevIvl(card, ease)
         else:
             card.ivl = self._constrainedIvl(card.ivl * card.factor / 1000, self._revConf(card),
-                                                card.lastIvl / (card.factor / 1000), fuzz=True)
+                                            card.lastIvl / (card.factor / 1000), fuzz=True)
 
         card.due = self.today + card.ivl
 

@@ -92,7 +92,15 @@ class Reviewer:
         if self._reps is None or self._reps % 100 == 0:
             # we recycle the webview periodically so webkit can free memory
             self._initWeb()
-        self._showQuestion()
+        try:
+            self._showQuestion()
+        except AttributeError as exc:
+            path = os.path.join(self.mw.pm.profileFolder(), "errors.txt")
+            with open(path, "ab") as f:
+                f.write(repr(self.card).encode("utf-8"))
+                f.write(repr(exc).encode("utf-8"))
+            self.nextCard()
+
 
     # Audio
     ##########################################################################

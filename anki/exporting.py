@@ -115,7 +115,7 @@ class AnkiExporter(Exporter):
 
     def exportInto(self, path):
         # sched info+v2 scheduler not compatible w/ older clients
-        self._v2sched = self.col.conf['usedScheduler'] != 'anki.sched.Scheduler' and self.includeSched
+        self._v2sched = not self.col.isFirstVersionSchedulerUsed() and self.includeSched
 
         # create a new collection at the target
         try:
@@ -341,7 +341,7 @@ class AnkiCollectionPackageExporter(AnkiPackageExporter):
     def doExport(self, z, path):
         # close our deck & write it into the zip file, and reopen
         self.count = self.col.cardCount()
-        v2 = self.col.conf['usedScheduler'] != 'anki.sched.Scheduler'
+        v2 = not self.col.isFirstVersionSchedulerUsed()
         self.col.close()
         if not v2:
             z.write(self.col.path, "collection.anki2")

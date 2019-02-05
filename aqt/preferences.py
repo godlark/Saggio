@@ -134,7 +134,7 @@ class Preferences(QDialog):
     ######################################################################
 
     def _setupDayCutoff(self):
-        if self.mw.col.conf['usedScheduler'] == 'anki.sched.Scheduler':
+        if self.mw.col.isFirstVersionSchedulerUsed():
             self._setupDayCutoffV1()
         else:
             self._setupDayCutoffV2()
@@ -147,7 +147,7 @@ class Preferences(QDialog):
         self.form.dayOffset.setValue(self.mw.col.conf.get("rollover", 4))
 
     def _updateDayCutoff(self):
-        if self.mw.col.conf['usedScheduler'] == 'anki.sched.Scheduler':
+        if self.mw.col.isFirstVersionSchedulerUsed():
             self._updateDayCutoffV1()
         else:
             self._updateDayCutoffV2()

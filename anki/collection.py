@@ -34,6 +34,7 @@ import anki.find
 defaultConf = {
     # review options
     'activeDecks': [1],
+    'rollover': 0,
     'curDeck': 1,
     'newSpread': NEW_CARDS_DISTRIBUTE,
     'collapseTime': 1200,
@@ -118,6 +119,9 @@ conf, models, decks, dconf, tags from col""")
         self.models.load(models)
         self.decks.load(decks, dconf)
         self.tags.load(tags)
+
+    def isFirstVersionSchedulerUsed(self):
+        return self.conf['usedScheduler'] == 'anki.sched.Scheduler'
 
     def setMod(self):
         """Mark DB modified.

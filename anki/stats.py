@@ -12,6 +12,8 @@ from anki.utils import fmtTimeSpan, ids2str
 from anki.lang import _, ngettext
 from anki.advanced_stats.TrueRetention import todayStats_new
 
+DEFAULT_ROLLOVER = 4
+
 
 # Card stats
 ##########################################################################
@@ -752,7 +754,7 @@ order by thetype, ease""" % (ease4repl, lim))
             sd = datetime.datetime.fromtimestamp(self.col.crt)
             rolloverHour = sd.hour
         else:
-            rolloverHour = self.col.conf.get("rollover", 4)
+            rolloverHour = self.col.conf.get("rollover", DEFAULT_ROLLOVER)
         pd = self._periodDays()
         if pd:
             lim += " and id > %d" % ((self.col.sched.dayCutoff-(86400*pd))*1000)

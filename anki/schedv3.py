@@ -365,27 +365,28 @@ did = ? and queue = 0 limit ?)""", did, lim)
 
     def _resetNew(self):
         self._resetNewCount()
-        self._newDids = self.col.decks.active()[:]
         self._newQueue = []
-        self._updateNewCardRatio()
 
     def _fillNew(self):
         if self._newQueue:
             return True
         if not self.newCount:
             return False
-        while self._newDids:
-            did = self._newDids[0]
+
+        cards_ids = []
+        for did in self.col.decks.active():
             lim = min(self.queueLimit, self._deckNewLimit(did))
             if lim:
                 # fill the queue with the current did
-                self._newQueue = self.col.db.list("""
-                select id from cards where did = ? and queue = 0 order by due,ord limit ?""", did, lim)
-                if self._newQueue:
-                    self._newQueue.reverse()
-                    return True
-            # nothing left in the deck; move to next
-            self._newDids.pop(0)
+                deck_cards = self.col.db.list("""
+                            select id from cards where did = ? and queue = 0 order by due,ord limit ?""", did, lim)
+                # TODO: Keep order of new items also here
+                cards_ids += list(deck_cards)
+        random.shuffle(cards_ids)
+        self._newQueue = cards_ids
+        if self._newQueue:
+            return True
+
         if self.newCount:
             # if we didn't get a card but the count is non-zero,
             # we need to check again for any cards that were
@@ -398,27 +399,15 @@ did = ? and queue = 0 limit ?)""", did, lim)
             self.newCount -= 1
             return self.col.getCard(self._newQueue.pop())
 
-    def _updateNewCardRatio(self):
-        if self.col.conf['newSpread'] == NEW_CARDS_DISTRIBUTE:
-            if self.newCount:
-                self.newCardModulus = (
-                    (self.newCount + self.revCount) // self.newCount)
-                # if there are cards to review, ensure modulo >= 2
-                if self.revCount:
-                    self.newCardModulus = max(2, self.newCardModulus)
-                return
-        self.newCardModulus = 0
-
     def _timeForNewCard(self):
-        "True if it's time to display a new card when distributing."
         if not self.newCount:
             return False
         if self.col.conf['newSpread'] == NEW_CARDS_LAST:
             return False
         elif self.col.conf['newSpread'] == NEW_CARDS_FIRST:
             return True
-        elif self.newCardModulus:
-            return self.reps and self.reps % self.newCardModulus == 0
+        else:
+            return random.uniform(0, 1) < self.newCount / (self.newCount + self.revCount)
 
     def _deckNewLimit(self, did, fn=None):
         if not fn:

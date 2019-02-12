@@ -555,6 +555,9 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
         # immediate graduate?
         if ease == 4:
+            if card.type in [0, 1]:
+                # TODO: Is it possible that card has type == 0
+                self.newCount += 1
             self._rescheduleAsRev(card, conf, True)
             leaving = True
         # next step?

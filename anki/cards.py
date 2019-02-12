@@ -19,7 +19,17 @@ from anki.consts import *
 # - rev queue: integer day
 # - lrn queue: integer timestamp
 
+
 class Card:
+
+    @classmethod
+    def create(cls, col, nid, ord, did, due):
+        card = Card(col)
+        card.nid = nid
+        card.ord = ord
+        card.did = did
+        card.due = due
+        return card
 
     def __init__(self, col, id=None):
         self.col = col
@@ -31,7 +41,7 @@ class Card:
             self.load()
         else:
             # to flush, set nid, ord, and due
-            self.id = timestampID(col.db, "cards")
+            self.id = None
             self.did = 1
             self.crt = intTime()
             self.type = 0
@@ -76,28 +86,39 @@ class Card:
         if self.queue == 2 and self.odue and not self.col.decks.isDyn(self.did):
             runHook("odueInvalid")
         assert self.due < 4294967296
-        self.col.db.execute(
-            """
-insert or replace into cards values
-(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            self.id,
-            self.nid,
-            self.did,
-            self.ord,
-            self.mod,
-            self.usn,
-            self.type,
-            self.queue,
-            self.due,
-            self.ivl,
-            self.factor,
-            self.reps,
-            self.lapses,
-            self.left,
-            self.odue,
-            self.odid,
-            self.flags,
-            self.data)
+
+        if self.id is None:
+            self.id = timestampID(self.col.db, "cards")
+            self.col.db.execute(
+                """
+    insert into cards values
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                self.id,
+                self.nid,
+                self.did,
+                self.ord,
+                self.mod,
+                self.usn,
+                self.type,
+                self.queue,
+                self.due,
+                self.ivl,
+                self.factor,
+                self.reps,
+                self.lapses,
+                self.left,
+                self.odue,
+                self.odid,
+                self.flags,
+                self.data)
+        else:
+            self.col.db.execute(
+                """update cards set
+    nid=?, did=?, ord=?, mod=?, usn=?, type=?, queue=?, due=?, ivl=?, factor=?, reps=?,
+    lapses=?, left=?, odue=?, odid=?, flags=?, data=? where id = ?""",
+                self.nid, self.did, self.ord, self.mod, self.usn, self.type, self.queue, self.due, self.ivl,
+                self.factor, self.reps, self.lapses,
+                self.left, self.odue, self.odid, self.flags, self.data, self.id)
         self.col.log(self)
 
     def flushSched(self):

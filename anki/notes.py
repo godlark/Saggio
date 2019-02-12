@@ -5,6 +5,7 @@
 from anki.utils import fieldChecksum, intTime, \
     joinFields, splitFields, stripHTMLMedia, timestampID, guid64
 
+
 class Note:
 
     def __init__(self, col, model=None, id=None):
@@ -14,7 +15,7 @@ class Note:
             self.id = id
             self.load()
         else:
-            self.id = timestampID(col.db, "notes")
+            self.id = None
             self.guid = guid64()
             self._model = model
             self.mid = model['id']
@@ -45,7 +46,8 @@ from notes where id = ?""", self.id)
     def flush(self, mod=None):
         "If fields or tags have changed, write changes to disk."
         assert self.scm == self.col.scm
-        self._preFlush()
+        self.newlyAdded = (self.id is None)
+
         sfld = stripHTMLMedia(self.fields[self.col.models.sortIdx(self._model)])
         tags = self.stringTags()
         fields = self.joinedFields()
@@ -56,12 +58,24 @@ from notes where id = ?""", self.id)
         csum = fieldChecksum(self.fields[0])
         self.mod = mod if mod else intTime()
         self.usn = self.col.usn()
-        res = self.col.db.execute("""
-insert or replace into notes values (?,?,?,?,?,?,?,?,?,?,?)""",
-                            self.id, self.guid, self.mid,
-                            self.mod, self.usn, tags,
-                            fields, sfld, csum, self.flags,
-                            self.data)
+
+        if self.id is None:
+            self.id = timestampID(self.col.db, "notes")
+            self.col.db.execute(
+                """insert into notes values (?,?,?,?,?,?,?,?,?,?,?)""",
+                self.id, self.guid, self.mid,
+                self.mod, self.usn, tags,
+                fields, sfld, csum, self.flags,
+                self.data)
+        else:
+            self.col.db.execute(
+                """update notes set guid=?, mid=?, mod=?, usn=?, tags=?, flds=?, sfld=?, csum=?, flags=?, data=?
+                 where id = ?""",
+                self.guid, self.mid,
+                self.mod, self.usn, tags,
+                fields, sfld, csum, self.flags,
+                self.data, self.id)
+
         self.col.tags.register(self.tags)
         self._postFlush()
 
@@ -147,11 +161,6 @@ insert or replace into notes values (?,?,?,?,?,?,?,?,?,?,?)""",
 
     # Flushing cloze notes
     ##################################################
-
-    def _preFlush(self):
-        # have we been added yet?
-        self.newlyAdded = not self.col.db.scalar(
-            "select 1 from cards where nid = ?", self.id)
 
     def _postFlush(self):
         # generate missing cards

@@ -395,7 +395,7 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
     # type 0 - when previewing in add dialog, only non-empty
     # type 1 - when previewing edit, only existing
     # type 2 - when previewing in models dialog, all templates
-    def previewCards(self, note, type=0):
+    def previewCards(self, note, type=0, did = None):
         if type == 0:
             cms = self.findTemplates(note)
         elif type == 1:
@@ -406,19 +406,21 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
             return []
         cards = []
         for template in cms:
-            cards.append(self._newCard(note, template, 1, flush=False))
+            cards.append(self._newCard(note, template, 1, flush=False, did = did))
         return cards
 
-    def _newCard(self, note, template, due, flush=True):
+    def _newCard(self, note, template, due, did = None, flush=True):
         "Create a new card."
         card = anki.cards.Card(self)
         card.nid = note.id
         card.ord = template['ord']
-        # Use template did (deck override) if valid, otherwise model did
         card.did = self.db.scalar("select did from cards where nid = ? and ord = ?", card.nid, card.ord)
+        # Use template did (deck override) if valid, otherwise did in argument, otherwise model did
         if not card.did:
             if template['did'] and str(template['did']) in self.decks.decks:
                 card.did = template['did']
+            elif did:
+                card.did = did
             else:
                 card.did = note.model()['did']
         card = anki.cards.Card.create(self, nid=note.id, ord=template['ord'], did=card.did, due=self._dueForDid(card.did, due))

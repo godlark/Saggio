@@ -419,6 +419,8 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
         if not card.did:
             if template['did'] and str(template['did']) in self.decks.decks:
                 card.did = template['did']
+            elif did:
+                card.did = did
             else:
                 card.did = note.model()['did']
         # if invalid did, use default instead

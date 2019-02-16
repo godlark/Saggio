@@ -61,9 +61,7 @@ class CardLayout(QDialog):
         self.setFocus()
 
     def redraw(self):
-        did = None
-        if hasattr(self.parent,"deckChooser"):
-                did = self.parent.deckChooser.selectedId()
+        did = self.parent.deckChooser.selectedId() if self.addMode else None
         self.cards = self.col.previewCards(self.note, 2, did=did)
         idx = self.ord
         if idx >= len(self.cards):

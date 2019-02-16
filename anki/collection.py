@@ -410,19 +410,18 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
         return cards
 
     def _newCard(self, note, template, due, flush=True):
-        if template['did'] and str(template['did']) in self.decks.decks:
-            did = template['did']
-        else:
-            did = note.model()['did']
-        # if invalid did, use default instead
-        deck = self.decks.get(did)
-        if deck['dyn']:
-            # must not be a filtered deck
-            did = 1
-        else:
-            did = deck['id']
-
-        card = anki.cards.Card.create(self, nid=note.id, ord=template['ord'], did=did, due=self._dueForDid(did, due))
+        "Create a new card."
+        card = anki.cards.Card(self)
+        card.nid = note.id
+        card.ord = template['ord']
+        # Use template did (deck override) if valid, otherwise model did
+        card.did = self.db.scalar("select did from cards where nid = ? and ord = ?", card.nid, card.ord)
+        if not card.did:
+            if template['did'] and str(template['did']) in self.decks.decks:
+                card.did = template['did']
+            else:
+                card.did = note.model()['did']
+        card = anki.cards.Card.create(self, nid=note.id, ord=template['ord'], did=card.did, due=self._dueForDid(card.did, due))
 
         if flush:
             card.flush()

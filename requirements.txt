@@ -7,3 +7,4 @@ markdown
 PyQt5-sip
 PyQt5==5.11.*
 aiohttp
+psutil; sys_platform == "win32"

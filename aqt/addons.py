@@ -348,6 +348,7 @@ class AddonsDialog(QDialog):
         f.delete_2.clicked.connect(self.onDelete)
         f.config.clicked.connect(self.onConfig)
         self.form.addonList.currentRowChanged.connect(self._onAddonItemSelected)
+        self.setAcceptDrops(True)
         self.redrawAddons()
         restoreGeom(self, "addons")
         self.show()

@@ -10,6 +10,7 @@ import anki.lang
 from aqt.utils import openFolder, showWarning, getText, openHelp, showInfo, \
     askUser
 import aqt
+from anki.lang import _
 
 class Preferences(QDialog):
 

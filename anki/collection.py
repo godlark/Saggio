@@ -11,13 +11,14 @@ import stat
 import datetime
 import copy
 import traceback
+import json
 
 from anki.lang import _, ngettext
 from anki.schedulers import SCHEDULERS
 from anki.schedv2 import Scheduler
-from anki.utils import ids2str, fieldChecksum, stripHTML, \
-    intTime, splitFields, joinFields, maxID, json, devMode, stripHTMLMedia
-from anki.hooks import runFilter, runHook
+from anki.utils import ids2str, fieldChecksum, \
+    intTime, splitFields, joinFields, maxID, devMode, stripHTMLMedia
+from anki.hooks import  runFilter, runHook
 from anki.models import ModelManager
 from anki.media import MediaManager
 from anki.decks import DeckManager

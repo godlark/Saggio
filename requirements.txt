@@ -5,4 +5,4 @@ requests
 decorator
 markdown
 PyQt5-sip
-PyQt5
+PyQt5==5.11.*

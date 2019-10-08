@@ -261,7 +261,15 @@ PRAGMA foreign_keys=on;
             col.db.execute('DROP TABLE IF EXISTS _cards_old')
         finally:
             col.db.execute("update col set ver = 12")
-
+    if ver < 13:
+        try:
+            col.load()
+            col.conf['usedScheduler'] = 'anki.sched.Scheduler' if (col.conf['schedVer'] == 1) else 'anki.schedv2.Scheduler'
+            col.setMod()
+            col.save()
+            col.db.execute("update col set ver = 13")
+        except Exception as e:
+            print(e)
 
 def _upgradeClozeModel(col, m):
     m['type'] = MODEL_CLOZE

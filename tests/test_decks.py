@@ -1,5 +1,3 @@
-# coding: utf-8
-
 from tests.shared import assertException, getEmptyCol
 
 def test_basic():

@@ -153,6 +153,16 @@ class DeckManager:
         runHook("newDeck")
         return int(id)
 
+    def flatten(self, did):
+        dids = [r[1] for r in self.col.decks.children(did)]
+        self.col.db.execute(
+            "update cards set did={0} where did in {1} or "
+            "odid in {1}".format(did, ids2str(dids)))
+        deck = self.get(did)
+        self.save(deck)
+        for id in dids:
+            self.rem(id, False)
+
     def rem(self, did, cardsToo=False, childrenToo=True):
         "Remove the deck. If cardsToo, delete any cards inside."
         if str(did) == '1':

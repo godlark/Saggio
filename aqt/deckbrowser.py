@@ -211,11 +211,36 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         a.triggered.connect(lambda b, did=did: self._export(did))
         a = m.addAction(_("Delete"))
         a.triggered.connect(lambda b, did=did: self._delete(did))
+        a = m.addAction(_("Flatten"))
+        a.triggered.connect(lambda b, did=did: self._flatten(did))
         runHook("showDeckOptions", m, did)
         m.exec_(QCursor.pos())
 
     def _export(self, did):
         self.mw.onExport(did=did)
+
+    def _flatten(self, did):
+        deck = self.mw.col.decks.get(did)
+        if deck['dyn']:
+            return showWarning(_("You can't flatten a dynamic deck"))
+        self.mw.checkpoint(_("Flatten deck"))
+
+        deck = self.mw.col.decks.get(did)
+        dids = [r[1] for r in self.mw.col.decks.children(did)]
+        cnt = self.mw.col.db.scalar(
+            "select count() from cards where did in {0} or "
+            "odid in {0}".format(ids2str(dids)))
+        if cnt:
+            extra = _(" Children decks have %d cards in total.") % cnt
+        else:
+            extra = None
+        if not extra or askUser(
+            (_("Are you sure you wish to flatten the deck %s?") % deck['name']) +
+            extra):
+            self.mw.progress.start(immediate=True)
+            self.mw.col.decks.flatten(did)
+            self.mw.progress.finish()
+            self.show()
 
     def _rename(self, did):
         self.mw.checkpoint(_("Rename Deck"))

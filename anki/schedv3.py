@@ -578,7 +578,6 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
     def _updateRevIvlOnFail(self, card, conf):
         card.lastIvl = card.ivl
-        card.ivl = self._lapseIvl(card, conf)
 
     def _moveToFirstStep(self, card, conf):
         card.left = self._startingLeft(card)
@@ -951,8 +950,8 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             # We shouldn't update any factors when early review happens
             card.factor = self._newFactor(card, ease)
 
-        if ease == 1:
-            delay = self._rescheduleLapse(card)
+        if ease == 1 or ease == 2:
+            delay = self._rescheduleLapse(card, ease)
         else:
             self._rescheduleRev(card, ease, early)
 
@@ -1011,14 +1010,16 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         factor = min(10000, factor)
         return factor
 
-    def _rescheduleLapse(self, card):
+    def _rescheduleLapse(self, card, ease):
         conf = self._lapseConf(card)
 
         card.lapses += 1
         suspended = self._checkLeech(card, conf) and card.queue == -1
 
         card.lastIvl = card.ivl
-        card.ivl = card.ivl * card.factor / card.lastFactor
+
+        if ease == 1:
+            card.ivl = card.ivl * card.factor / card.lastFactor
 
         if conf['delays'] and not suspended:
             card.type = 3
@@ -1033,10 +1034,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             delay = 0
 
         return delay
-
-    def _lapseIvl(self, card, conf):
-        ivl = max(1, conf['minInt'], card.ivl*conf['mult'])
-        return ivl
 
     def _rescheduleRev(self, card, ease, early):
         # update interval

@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import time
 import copy
 
@@ -9,7 +7,7 @@ from anki.utils import  intTime
 from anki.hooks import addHook
 
 def getEmptyCol():
-    return _getEmptyCol(schedVer=2)
+    return _getEmptyCol(scheduler='anki.schedv2.Scheduler')
 
 def test_clock():
     d = getEmptyCol()

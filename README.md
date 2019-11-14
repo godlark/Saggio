@@ -21,5 +21,5 @@ Statystyki wyglądają podejrzanie, tak jakby każdy interwał miał jedną kart
 Naprawa testów
 Dodanie opcji do limitu learning/new
 Usunięcie card.queue = 3 (learning in days)
-Dodanei card.queue = 5 (revision in seconds)
+Dodanie card.queue = 5 (revision in seconds)
 Revlog to powinien być plik txt z dowolną strukturą?

@@ -1013,7 +1013,9 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
     def _rescheduleLapse(self, card, ease):
         conf = self._lapseConf(card)
 
-        card.lapses += 1
+        # TODO: Add test for this new `if`
+        if card.factor < card.lastFactor or card.factor == 1300:
+            card.lapses += 1
         suspended = self._checkLeech(card, conf) and card.queue == -1
 
         card.lastIvl = card.ivl

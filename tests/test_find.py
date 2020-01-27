@@ -26,8 +26,8 @@ def test_findCards():
     f['Front'] = 'dog'
     f['Back'] = 'cat'
     f.tags.append("monkey animal_1 * %")
-    f1id = f.id
     deck.addNote(f)
+    f1id = f.id
     firstCardId = f.cards()[0].id
     f = deck.newNote()
     f['Front'] = 'goats are fun'

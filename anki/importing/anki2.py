@@ -291,6 +291,7 @@ class Anki2Importer(Importer):
     ######################################################################
 
     def _importCards(self):
+        # TODO: The previous version of revlog had 9 columns, now it has 11. Fix importing and exporting to cover that
         # build map of (guid, ord) -> cid and used id cache
         self._cards = {}
         existing = {}

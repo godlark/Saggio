@@ -830,13 +830,14 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         delay = 0
         early = card.odid and (card.odue > self.today)
         type = early and 3 or 1
+        due = card.due
 
         if ease == 1:
             delay = self._rescheduleLapse(card)
         else:
             self._rescheduleRev(card, ease, early)
 
-        self._logRev(card, ease, delay, type)
+        self._logRev(card, ease, delay, type, due)
 
     def _rescheduleLapse(self, card):
         conf = self._lapseConf(card)
@@ -879,7 +880,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         # card leaves filtered deck
         self._removeFromFiltered(card)
 
-    def _logRev(self, card, ease, delay, type):
+    def _logRev(self, card, ease, delay, type, due):
         def log():
             self.col.db.execute(
                 "insert into revlog values (?,?,?,?,?,?,?,?,?)",

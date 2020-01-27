@@ -792,11 +792,12 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
     def _answerRevCard(self, card, ease):
         delay = 0
+        due = card.due
         if ease == 1:
             delay = self._rescheduleLapse(card)
         else:
             self._rescheduleRev(card, ease)
-        self._logRev(card, ease, delay)
+        self._logRev(card, ease, delay, due)
 
     def _rescheduleLapse(self, card):
         conf = self._lapseConf(card)
@@ -852,7 +853,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             card.odid = 0
             card.odue = 0
 
-    def _logRev(self, card, ease, delay):
+    def _logRev(self, card, ease, delay, due):
         def log():
             self.col.db.execute(
                 "insert into revlog values (?,?,?,?,?,?,?,?,?)",

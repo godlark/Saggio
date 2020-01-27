@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import nose, os, tempfile
+import pytest
 from anki import Collection as aopen
 from anki.exporting import *
 from anki.importing import Anki2Importer
@@ -12,7 +13,7 @@ testDir = os.path.dirname(__file__)
 
 def setup1():
     global deck
-    deck = getEmptyCol()
+    deck = getEmptyCol(scheduler='anki.schedv3.Scheduler')
     f = deck.newNote()
     f['Front'] = "foo"; f['Back'] = "bar"; f.tags = ["tag", "tag2"]
     deck.addNote(f)
@@ -82,7 +83,7 @@ def test_export_ankipkg():
 
 @nose.with_setup(setup1)
 def test_export_anki_due():
-    deck = getEmptyCol(schedVer=2)
+    deck = getEmptyCol(scheduler='anki.schedv2.Scheduler')
     f = deck.newNote()
     f['Front'] = "foo"
     deck.addNote(f)
@@ -92,7 +93,7 @@ def test_export_anki_due():
     deck.sched.answerCard(c, 3)
     deck.sched.answerCard(c, 3)
     # should have ivl of 1, due on day 11
-    assert c.ivl == 1
+    assert pytest.approx(1.48, c.ivl, 0.01)
     assert c.due == 11
     assert deck.sched.today == 10
     assert c.due - deck.sched.today == 1
@@ -105,7 +106,7 @@ def test_export_anki_due():
     os.unlink(newname)
     e.exportInto(newname)
     # importing into a new deck, the due date should be equivalent
-    deck2 = getEmptyCol()
+    deck2 = getEmptyCol(scheduler='anki.sched.Scheduler')
     imp = Anki2Importer(deck2, newname)
     imp.run()
     c = deck2.getCard(c.id)

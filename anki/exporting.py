@@ -115,7 +115,7 @@ class AnkiExporter(Exporter):
 
     def exportInto(self, path):
         # sched info+v2 scheduler not compatible w/ older clients
-        self._v2sched = self.col.schedVer() != 1 and self.includeSched
+        self._v2sched = self.col.conf['usedScheduler'] != 'anki.sched.Scheduler' and self.includeSched
 
         # create a new collection at the target
         try:

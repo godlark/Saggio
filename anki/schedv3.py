@@ -123,13 +123,17 @@ class Scheduler:
         else:
             assert 0
 
+    @staticmethod
+    def _set_due(card, due):
+        card.due = int(round(due))
+
     def _answerCardPreview(self, card, ease):
         assert 1 <= ease <= 2
 
         if ease == 1:
             # repeat after delay
             card.queue = 4
-            card.due = intTime() + self._previewDelay(card)
+            self._set_due(card, intTime() + self._previewDelay(card))
             self.lrnCount += 1
         else:
             # restore original card state and remove from filtered deck
@@ -603,13 +607,13 @@ did = ? and queue = 3 and due <= ? limit ?""",
         if delay is None:
             delay = self._delayForGrade(conf, card.left)
 
-        card.due = int(time.time() + delay)
+        self._set_due(card, time.time() + delay)
         # due today?
         if card.due < self.dayCutoff:
             # add some randomness, up to 5 minutes or 25%
             maxExtra = min(300, int(delay*0.25))
             fuzz = random.randrange(0, maxExtra)
-            card.due = min(self.dayCutoff-1, card.due + fuzz)
+            self._set_due(card, min(self.dayCutoff-1, card.due + fuzz))
             card.queue = 1
             if card.due < (intTime() + self.col.conf['collapseTime']):
                 self.lrnCount += 1
@@ -618,13 +622,13 @@ did = ? and queue = 3 and due <= ? limit ?""",
                 # it twice in a row
                 if self._lrnQueue and not self.revCount and not self.newCount:
                     smallestDue = self._lrnQueue[0][0]
-                    card.due = max(card.due, smallestDue+1)
+                    self._set_due(card, time.time() + delay)
                 heappush(self._lrnQueue, (card.due, card.id))
         else:
             # the card is due in one or more days, so we need to use the
             # day learn queue
             ahead = ((card.due - self.dayCutoff) // 86400) + 1
-            card.due = self.today + ahead
+            self._set_due(card, self.today + ahead)
             card.queue = 3
 
     def _delayForGrade(self, conf, left):
@@ -668,7 +672,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
             self._removeFromFiltered(card)
 
     def _rescheduleGraduatingLapse(self, card):
-        card.due = self.today+card.ivl
+        self._set_due(card, self.today + card.ivl)
         card.queue = 2
         card.type = 2
 
@@ -725,7 +729,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
         card.factor = min(card.factor, 10000)
         card.factor = max(card.factor, 1300)
         card.ivl = self._graduatingIvl(card, conf, early)
-        card.due = self.today+card.ivl
+        self._set_due(card, self.today + card.ivl)
         card.type = card.queue = 2
 
     def _logLrn(self, card, ease, conf, leaving, type, lastLeft):
@@ -1113,7 +1117,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         else:
             card.ivl = self._get_next_ivl(card, card.ivl, card.factor, card.lastFactor, ease)
 
-        card.due = self.today + card.ivl
+        self._set_due(card, self.today + card.ivl)
 
         # card leaves filtered deck
         self._removeFromFiltered(card)

@@ -85,7 +85,7 @@ def test_if_answer_is_2_then_schedule_as_relearning(getFuzz, logRev):
     # shouldn't update ivl neither factor
     assert card.queue == card.type == 2
     assert card.ivl == new_ivl
-    assert card.due == collection.sched.today + card.ivl
+    assert card.due == int(round(collection.sched.today + card.ivl))
     assert card.factor == new_factor
 
 
@@ -143,7 +143,7 @@ def test_if_answer_is_1_then_schedule_as_relearning():
     # shouldn't update ivl neither factor
     assert card.queue == card.type == 2
     assert card.ivl == new_ivl
-    assert card.due == collection.sched.today + card.ivl
+    assert card.due == int(round(collection.sched.today + card.ivl))
     assert card.factor == new_factor
 
 
@@ -245,7 +245,7 @@ def test_if_card_parameters_stay_the_same_when_hard_answer_predicted(getFuzz):
     # shouldn't update ivl neither factor
     assert card.queue == card.type == 2
     assert card.ivl == new_ivl
-    assert card.due == collection.sched.today + card.ivl
+    assert card.due == int(round(collection.sched.today + card.ivl))
     assert card.factor == new_factor
     assert card.lapses == 0
 

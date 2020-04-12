@@ -180,3 +180,28 @@ def test_if_answer_is_4_then_schedule_with_bigger_ivl_and_factor():
     assert card.queue == card.type == 2
     assert card.ivl > last_ivl
     assert card.factor > last_factor
+
+
+def test_if_moves_learning_to_the_previous_step():
+    # ARRANGE
+    last_ivl = 100
+    collection = getEmptyCol()
+    card = create_learning_card(collection, last_ivl)
+    last_factor = card.factor
+
+    # ACT
+    collection.reset()
+    card = collection.sched.getCard()
+    # Fail the card
+    collection.sched.answerCard(card, 1)
+    # Move to the next stp
+    first_left = card.left
+    collection.sched.answerCard(card, 3)
+    second_left = card.left
+    collection.sched.answerCard(card, 3)
+    third_left = card.left
+
+    # ASSERT
+    # Fail the step, it should move to previous step
+    collection.sched.answerCard(card, 1)
+    assert card.left == second_left

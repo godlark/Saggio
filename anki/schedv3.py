@@ -1,7 +1,6 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 import math
-import pprint
 import time
 import random
 import itertools
@@ -571,13 +570,20 @@ did = ? and queue = 3 and due <= ? limit ?""",
         elif ease == 2:
             self._repeatStep(card, conf)
         else:
-            # back to first step
-            self._moveToFirstStep(card, conf)
+            self._moveToPrevStep(card, conf)
 
         self._logLrn(card, ease, conf, leaving, type, lastLeft)
 
     def _updateRevIvlOnFail(self, card, conf):
         card.lastIvl = card.ivl
+
+    def _moveToPrevStep(self, card, conf):
+        # increment real left count and recalculate left today
+        # TODO: Add two tests: for max
+        left = min(len(conf['delays']), (card.left % 1000) + 1)
+        card.left = self._leftToday(conf['delays'], left) * 1000 + left
+
+        self._rescheduleLrnCard(card, conf)
 
     def _moveToFirstStep(self, card, conf):
         card.left = self._startingLeft(card)
@@ -701,7 +707,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
             return card.ivl
         if not early:
             # graduate
-            ideal =  conf['ints'][0]
+            ideal = conf['ints'][0]
         else:
             # early remove
             ideal = conf['ints'][1]
@@ -1001,7 +1007,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
                 p = math.log(hard_lower)
         # p = -k * total_time / corrected_ivl
         corrected_ivl = -k * total_time / p
-        pprint.pprint(card)
 
         ivl_power = math.log(curr_ivl * (card.factor / 1000) ** 2) / math.log(card.factor / 1000)
         factor_multiplier = (corrected_ivl / curr_ivl) ** (1 / (ivl_power ** 0.37037))
@@ -1078,6 +1083,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         return random.uniform(min, max)
 
     def _fuzzIvlRange(self, ivl):
+        # TODO: Need evidence for those ranges
         if ivl < 2:
             return [1, ivl]
         elif ivl == 2:

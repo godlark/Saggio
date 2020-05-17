@@ -57,6 +57,10 @@ def test_if_answer_is_2_then_schedule_as_relearning(logRev):
     # stay the same
     new_factor = card.factor
     new_ivl = card.ivl
+    # TODO: Fix tests but not using lastIvl and making configurable contrainedIvl factor
+    updated_last_ivl = card.lastIvl
+
+    assert updated_last_ivl < last_ivl
     assert card.queue == 1
     assert card.type == 3
     # TODO: Should we decrease interval when the answer is "Hard"
@@ -74,7 +78,7 @@ def test_if_answer_is_2_then_schedule_as_relearning(logRev):
     # shouldn't update ivl neither factor
     assert card.queue == card.type == 2
     assert card.ivl == new_ivl
-    assert card.due == int(round(collection.sched.today + card.ivl))
+    assert card.due == collection.sched.today + card.ivl
     assert card.factor == new_factor
 
 
@@ -94,6 +98,9 @@ def test_if_answer_is_1_then_schedule_as_relearning():
     # Fail the card. Factor and ivl should be updated
     new_factor = card.factor
     new_ivl = card.ivl
+    updated_last_ivl = card.lastIvl
+
+    assert updated_last_ivl < last_ivl
     assert card.queue == 1
     assert card.type == 3
     assert new_ivl < last_ivl
@@ -128,6 +135,9 @@ def test_if_answer_is_3_then_schedule_with_bigger_ivl(logRev):
 
     # ASSERT
     # Pass the card. Ivl should be increased, factor should stay the same.
+    updated_last_ivl = card.lastIvl
+
+    assert updated_last_ivl == last_ivl
     assert card.queue == card.type == 2
     assert card.ivl > last_ivl
     assert card.factor == last_factor
@@ -152,6 +162,9 @@ def test_if_card_parameters_stay_the_same_when_bad_result_predicted():
     # Failed card - but expected. Ivl should stay the same, factor should stay the same.
     new_factor = card.factor
     new_ivl = card.ivl
+    updated_last_ivl = card.lastIvl
+
+    assert updated_last_ivl == last_ivl
     assert card.queue == 1
     assert card.type == 3
     assert new_ivl == last_ivl
@@ -186,6 +199,9 @@ def test_if_answer_is_4_then_schedule_with_bigger_ivl_and_factor():
 
     # ASSERT
     # Pass the card with "Easy". Ivl and factor should be increased.
+    updated_last_ivl = card.lastIvl
+
+    assert updated_last_ivl > last_ivl
     assert card.queue == card.type == 2
     assert card.ivl > last_ivl
     assert card.factor > last_factor

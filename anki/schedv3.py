@@ -960,6 +960,11 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             # We shouldn't update any factors when early review happens
             card.factor = self._newFactor(card, ease)
 
+        if card.factor > card.lastFactor:
+            self._increaseIvl(card)
+        elif card.factor < card.lastFactor:
+            self._decreaseIvl(card)
+
         delay = None
         if ease == 1 or ease == 2:
             delay = 0
@@ -968,6 +973,38 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             self._rescheduleRev(card, ease, early)
 
         self.logRev(self.col, card, ease, delay, type)
+
+    def _decreaseIvl(self, card):
+        # TODO: Depends on card.lastFactor
+        # It's done this way because on late stages it's more probably that we forgot card because we learned
+        # another similar card than that the card is harder than expected
+        max_ivl = 1024
+
+        original_factor = card.factor
+
+        k = math.log(min(max_ivl, card.ivl), original_factor / 1000)
+        l = math.log(max_ivl, original_factor / 1000)
+        decreasing_factor_part = 1 - k / l
+
+        decreasing_factor_ratio = 1 - original_factor / card.lastFactor
+        card.factor = card.lastFactor * (1 - decreasing_factor_part * decreasing_factor_ratio)
+        card.ivl = card.ivl * original_factor / card.factor
+
+    def _increaseIvl(self, card):
+        # TODO: Depends on card.lastFactor
+        # It's done this way because on early stages it's more probably that we already know the card
+        # than the card is easy
+        max_ivl = 1024
+
+        original_factor = card.factor
+
+        k = math.log(min(max_ivl, card.ivl), original_factor / 1000)
+        l = math.log(max_ivl, original_factor / 1000)
+        increasing_factor_part = k/l
+
+        increasing_factor_ratio = original_factor / card.lastFactor - 1
+        card.factor = card.lastFactor * (1 + increasing_factor_part * increasing_factor_ratio)
+        card.ivl = card.ivl * original_factor / card.factor
 
     def _newFactor(self, card, ease):
         curr_ivl = max(1000 / card.factor, card.ivl)

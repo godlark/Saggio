@@ -159,8 +159,10 @@ def test_if_answer_is_3_then_schedule_with_bigger_ivl(logRev):
     logRev.assert_called_once_with(collection, card, answer_good, None, 1)
 
 
-def test_if_card_parameters_stay_the_same_when_bad_result_predicted():
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_card_parameters_stay_the_same_when_bad_result_predicted(getFuzz):
     # ARRANGE
+    getFuzz.return_value = False
     last_ivl = 100
     late_days = last_ivl * 2
     collection = getEmptyCol()
@@ -173,15 +175,12 @@ def test_if_card_parameters_stay_the_same_when_bad_result_predicted():
     collection.sched.answerCard(card, 1)
 
     # ASSERT
-    # Failed card - but expected. Ivl should stay the same, factor should stay the same.
+    # Failed card - but expected. Ivl should decrease, factor should stay the same.
     new_factor = card.factor
     new_ivl = card.ivl
-    updated_last_ivl = card.lastIvl
-
-    assert updated_last_ivl == last_ivl
     assert card.queue == 1
     assert card.type == 3
-    assert new_ivl == last_ivl
+    assert last_ivl / (last_factor / 1000) == new_ivl
     assert new_factor == last_factor
     assert card.lapses == 0
 

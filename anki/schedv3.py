@@ -1060,7 +1060,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         suspended = self._checkLeech(card, conf) and card.queue == -1
 
         if ease == 1:
-            card.ivl = card.ivl * card.factor / card.lastFactor
+            card.ivl = self._constrainedIvl(card.ivl / card.factor * 1000, self._revConf(card), fuzz=self.getFuzz())
 
         if conf['delays'] and not suspended:
             card.type = 3

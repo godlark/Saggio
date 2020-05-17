@@ -574,9 +574,6 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
         self._logLrn(card, ease, conf, leaving, type, lastLeft)
 
-    def _updateRevIvlOnFail(self, card, conf):
-        card.lastIvl = card.ivl
-
     def _moveToPrevStep(self, card, conf):
         # increment real left count and recalculate left today
         # TODO: Add two tests: for max
@@ -587,11 +584,6 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
     def _moveToFirstStep(self, card, conf):
         card.left = self._startingLeft(card)
-
-        # relearning card?
-        if card.type == 3:
-            self._updateRevIvlOnFail(card, conf)
-
         self._rescheduleLrnCard(card, conf)
 
     def _moveToNextStep(self, card, conf):
@@ -960,6 +952,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             # We shouldn't update any factors when early review happens
             card.factor = self._newFactor(card, ease)
 
+        card.lastIvl = card.ivl
         if card.factor > card.lastFactor:
             self._increaseIvl(card)
         elif card.factor < card.lastFactor:
@@ -1066,8 +1059,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             card.lapses += 1
         suspended = self._checkLeech(card, conf) and card.queue == -1
 
-        card.lastIvl = card.ivl
-
         if ease == 1:
             card.ivl = card.ivl * card.factor / card.lastFactor
 
@@ -1076,20 +1067,21 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             self._moveToFirstStep(card, conf)
         else:
             # no relearning steps
-            self._updateRevIvlOnFail(card, conf)
             self._rescheduleAsRev(card, conf, early=False)
             # need to reset the queue after rescheduling
             if suspended:
                 card.queue = -1
 
+    @staticmethod
+    def getFuzz():
+        return True
+
     def _rescheduleRev(self, card, ease, early):
         # update interval
-        card.lastIvl = card.ivl
         if early:
             self._updateEarlyRevIvl(card, ease)
         else:
-            card.ivl = self._constrainedIvl(card.ivl * card.factor / 1000, self._revConf(card),
-                                            card.lastIvl / (card.factor / 1000), fuzz=True)
+            card.ivl = self._constrainedIvl(card.ivl * card.factor / 1000, self._revConf(card), fuzz=self.getFuzz())
 
         card.due = self.today + card.ivl
 
@@ -1116,8 +1108,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
     def _nextRevIvl(self, card, ease, fuzz):
         new_factor = self._newFactor(card, ease)
-        return self._constrainedIvl(card.ivl * new_factor / 1000, self._revConf(card),
-                                    card.ivl / (card.factor / 1000), fuzz)
+        return self._constrainedIvl(card.ivl * new_factor / 1000, self._revConf(card), fuzz)
 
     def _fuzzedIvl(self, ivl):
         min, max = self._fuzzIvlRange(ivl)
@@ -1139,11 +1130,11 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         fuzz = max(fuzz, 1)
         return [ivl - fuzz, ivl + fuzz]
 
-    def _constrainedIvl(self, ivl, conf, prev, fuzz):
+    def _constrainedIvl(self, ivl, conf, fuzz):
         ivl = ivl * conf.get('ivlFct', 1)
         if fuzz:
             ivl = self._fuzzedIvl(ivl)
-        ivl = max(ivl, prev + 1, 1)
+        ivl = max(ivl, 1)
         ivl = min(ivl, conf['maxIvl'])
         return ivl
 
@@ -1190,7 +1181,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         # cap interval decreases
         ivl = max(card.ivl*minNewIvl, ivl) * easyBonus
 
-        ivl = self._constrainedIvl(ivl, conf, prev=0, fuzz=False)
+        ivl = self._constrainedIvl(ivl, conf, fuzz=False)
 
         return ivl
 

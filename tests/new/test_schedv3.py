@@ -205,3 +205,19 @@ def test_if_moves_learning_to_the_previous_step():
     # Fail the step, it should move to previous step
     collection.sched.answerCard(card, 1)
     assert card.left == second_left
+
+
+def test_scatter_fairly_cards_from_different_decks_returns_the_same_cards():
+    # ARRANGE
+    deck_id = 1
+    card_ids = list(range(1, 7))
+    cards = [(card_id, deck_id) for card_id in card_ids]
+    all_decks = [{'id': 1}]
+    decks_parents = {1: []}
+
+    # ACT
+    from anki.schedv3 import Scheduler
+    results = Scheduler.scatter_fairly_cards_from_different_decks(cards, all_decks, decks_parents)
+
+    # ASSERT
+    assert card_ids == results

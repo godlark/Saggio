@@ -882,15 +882,16 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
 
         return self._scatter_fairly_cards_from_different_decks(limited_rev_queue)
 
-    def _scatter_fairly_cards_from_different_decks(self, limited_rev_queue):
-        decks_cards = {deck['id']: [] for deck in self.col.decks.all()}
+    @staticmethod
+    def scatter_fairly_cards_from_different_decks(limited_rev_queue, all_decks, decks_parents):
+        decks_cards = {deck['id']: [] for deck in all_decks}
         for pos, (card_id, deck_id) in enumerate(limited_rev_queue):
             decks_cards[deck_id].append((pos, card_id))
-            for parent in self.col.decks.parents(deck_id):
+            for parent in decks_parents[deck_id]:
                 decks_cards[parent['id']].append((pos, card_id))
 
         used_cards = set()
-        deck_cards_already_used = {deck['id']: 0 for deck in self.col.decks.all()}
+        deck_cards_already_used = {deck['id']: 0 for deck in all_decks}
         fair_rev_queue = []
         for i in range(len(limited_rev_queue)):
             curr_max_points = 0
@@ -899,7 +900,7 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
             for deck_id in decks_cards.keys():
                 while decks_cards[deck_id] and decks_cards[deck_id][0][1] in used_cards:
                     deck_cards_already_used[deck_id] += 1
-                    decks_cards[deck_id].pop()
+                    decks_cards[deck_id].pop(0)
 
                 if not decks_cards[deck_id]:
                     continue
@@ -907,7 +908,8 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
                 pos_difference = abs(i - decks_cards[deck_id][0][0])
                 points_position_changed = 1 - ((pos_difference ** 2) / (pos_difference ** 2 + len(limited_rev_queue)))
 
-                distribution_whole = (deck_cards_already_used[deck_id] + len(decks_cards[deck_id])) / len(limited_rev_queue)
+                distribution_whole = (deck_cards_already_used[deck_id] + len(decks_cards[deck_id])) / len(
+                    limited_rev_queue)
                 distribution_current = 0 if i == 0 else deck_cards_already_used[deck_id] / i
 
                 if distribution_current < distribution_whole:
@@ -923,6 +925,10 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
             fair_rev_queue.append(curr_card_id)
             used_cards.add(curr_card_id)
         return fair_rev_queue
+
+    def _scatter_fairly_cards_from_different_decks(self, limited_rev_queue):
+        decks_parents = {deck['id']: self.col.decks.parents(deck['id']) for deck in self.col.decks.all()}
+        return self.scatter_fairly_cards_from_different_decks(limited_rev_queue, self.col.decks.all(), decks_parents)
 
     def _deckRevLimit(self, d):
         if not d: return 0  # invalid deck selected?

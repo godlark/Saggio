@@ -198,6 +198,85 @@ def test_if_card_parameters_stay_the_same_when_bad_result_predicted(getFuzz):
     assert card.lapses == 0
 
 
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_card_parameters_stay_the_same_when_hard_answer_predicted(getFuzz):
+    # ARRANGE
+    getFuzz.return_value = False
+    last_ivl = 100
+    late_days = last_ivl
+    collection = getEmptyCol()
+    card = create_late_learning_card(collection, last_ivl, late_days)
+    last_factor = card.factor
+
+    # ACT
+    collection.reset()
+    card = collection.sched.getCard()
+    collection.sched.answerCard(card, 2)
+
+    # ASSERT
+    # Failed card - but expected. Ivl should stay the same, factor should stay the same.
+    new_factor = card.factor
+    new_ivl = card.ivl
+    assert card.queue == 1
+    assert card.type == 3
+    assert last_ivl == new_ivl
+    assert new_factor == last_factor
+    assert card.lapses == 0
+
+    # ACT
+    # Graduate a relearning card
+    collection.sched.answerCard(card, 4)
+
+    # ASSERT
+    # Graduation of relearning card (irrespectively if answer is 3 or 4)
+    # shouldn't update ivl neither factor
+    assert card.queue == card.type == 2
+    assert card.ivl == new_ivl
+    assert card.due == collection.sched.today + card.ivl
+    assert card.factor == new_factor
+    assert card.lapses == 0
+
+
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_card_parameters_increase_when_hard_answered_and_wrong_answer_predicted(getFuzz):
+    # ARRANGE
+    getFuzz.return_value = False
+    last_ivl = 100
+    late_days = last_ivl * 2
+    collection = getEmptyCol()
+    card = create_late_learning_card(collection, last_ivl, late_days)
+    last_factor = card.factor
+
+    # ACT
+    collection.reset()
+    card = collection.sched.getCard()
+    collection.sched.answerCard(card, 2)
+
+    # ASSERT
+    # Failed card - but expected. Ivl should increase a little, factor should increase
+    new_factor = card.factor
+    new_ivl = card.ivl
+    assert card.queue == 1
+    assert card.type == 3
+    assert new_factor > last_factor
+    # Both factor and ivl are increased, and than ivl is multiplied by = (new_factor/last_factor)
+    assert new_ivl > last_ivl * (new_factor / last_factor)
+    assert card.lapses == 0
+
+    # ACT
+    # Graduate a relearning card
+    collection.sched.answerCard(card, 4)
+
+    # ASSERT
+    # Graduation of relearning card (irrespectively if answer is 3 or 4)
+    # shouldn't update ivl neither factor
+    assert card.queue == card.type == 2
+    assert card.ivl == new_ivl
+    assert card.due == collection.sched.today + card.ivl
+    assert card.factor == new_factor
+    assert card.lapses == 0
+
+
 def test_if_answer_is_4_then_schedule_with_bigger_ivl_and_factor():
     # ARRANGE
     last_ivl = 100
@@ -251,14 +330,14 @@ def test_if_ivl_for_more_mature_card_decreases_more(getFuzz):
     last_fresh_ivl = 100
     card1 = create_learning_card(collection, last_fresh_ivl)
     card2 = create_learning_card(collection, last_mature_ivl)
-    answer_hard = 2
+    answer_wrong = 1
 
     # ACT
     collection.reset()
     card1.startTimer()
-    collection.sched.answerCard(card1, answer_hard)
+    collection.sched.answerCard(card1, answer_wrong)
     card2.startTimer()
-    collection.sched.answerCard(card2, answer_hard)
+    collection.sched.answerCard(card2, answer_wrong)
 
     # ASSERT
     assert card1.factor < card2.factor

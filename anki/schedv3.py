@@ -592,7 +592,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
         if card.type == 3:
             self._updateRevIvlOnFail(card, conf)
 
-        return self._rescheduleLrnCard(card, conf)
+        self._rescheduleLrnCard(card, conf)
 
     def _moveToNextStep(self, card, conf):
         # decrement real left count and recalculate left today
@@ -633,7 +633,6 @@ did = ? and queue = 3 and due <= ? limit ?""",
             ahead = ((card.due - self.dayCutoff) // 86400) + 1
             card.due = self.today + ahead
             card.queue = 3
-        return delay
 
     def _delayForGrade(self, conf, left):
         left = left % 1000
@@ -953,7 +952,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
     ##########################################################################
 
     def _answerRevCard(self, card, ease):
-        delay = 0
         early = card.odid and (card.odue > self.today)
         type = early and 3 or 1
 
@@ -962,12 +960,14 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             # We shouldn't update any factors when early review happens
             card.factor = self._newFactor(card, ease)
 
+        delay = None
         if ease == 1 or ease == 2:
-            delay = self._rescheduleLapse(card, ease)
+            delay = 0
+            self._rescheduleLapse(card, ease)
         else:
             self._rescheduleRev(card, ease, early)
 
-        self._logRev(card, ease, delay, type)
+        self.logRev(self.col, card, ease, delay, type)
 
     def _newFactor(self, card, ease):
         curr_ivl = max(1000 / card.factor, card.ivl)
@@ -1036,7 +1036,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
         if conf['delays'] and not suspended:
             card.type = 3
-            delay = self._moveToFirstStep(card, conf)
+            self._moveToFirstStep(card, conf)
         else:
             # no relearning steps
             self._updateRevIvlOnFail(card, conf)
@@ -1044,9 +1044,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             # need to reset the queue after rescheduling
             if suspended:
                 card.queue = -1
-            delay = 0
-
-        return delay
 
     def _rescheduleRev(self, card, ease, early):
         # update interval
@@ -1062,12 +1059,13 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         # card leaves filtered deck
         self._removeFromFiltered(card)
 
-    def _logRev(self, card, ease, delay, type):
+    @staticmethod
+    def logRev(col, card, ease, delay, type):
         def log():
-            self.col.db.execute(
+            col.db.execute(
                 "insert into revlog values (?,?,?,?,?,?,?,?,?)",
-                int(time.time()*1000), card.id, self.col.usn(), ease,
-                -delay or card.ivl, card.lastIvl, card.factor, card.timeTaken(),
+                int(time.time()*1000), card.id, col.usn(), ease,
+                card.ivl if delay is None else delay, card.lastIvl, card.factor, card.timeTaken(),
                 type)
         try:
             log()

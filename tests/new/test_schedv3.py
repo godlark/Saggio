@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from tests.shared import getEmptyCol as _getEmptyCol
 
 
@@ -36,17 +38,19 @@ def create_late_learning_card(collection, ivl, late):
     return card
 
 
-def test_if_answer_is_2_then_schedule_as_relearning():
+@patch('anki.schedv3.Scheduler.logRev')
+def test_if_answer_is_2_then_schedule_as_relearning(logRev):
     # ARRANGE
     last_ivl = 100
     collection = getEmptyCol()
     card = create_learning_card(collection, last_ivl)
     last_factor = card.factor
+    first_answer_hard = 2
 
     # ACT
     collection.reset()
     card = collection.sched.getCard()
-    collection.sched.answerCard(card, 2)
+    collection.sched.answerCard(card, first_answer_hard)
 
     # ASSERT
     # Fail the card. Factor should be updated, ivl should
@@ -59,6 +63,7 @@ def test_if_answer_is_2_then_schedule_as_relearning():
     assert 0.8 * last_ivl <= new_ivl <= last_ivl
     # assert card.ivl == last_ivl
     assert new_factor < last_factor
+    logRev.assert_called_once_with(collection, card, first_answer_hard, 0, 1)
 
     # ACT
     # Graduate a relearning card
@@ -107,23 +112,27 @@ def test_if_answer_is_1_then_schedule_as_relearning():
     assert card.factor == new_factor
 
 
-def test_if_answer_is_3_then_schedule_with_bigger_ivl():
+@patch('anki.schedv3.Scheduler.logRev')
+def test_if_answer_is_3_then_schedule_with_bigger_ivl(logRev):
     # ARRANGE
     last_ivl = 100
     collection = getEmptyCol()
     card = create_learning_card(collection, last_ivl)
     last_factor = card.factor
+    answer_good = 3
 
     # ACT
     collection.reset()
     card = collection.sched.getCard()
-    collection.sched.answerCard(card, 3)
+    collection.sched.answerCard(card, answer_good)
 
     # ASSERT
     # Pass the card. Ivl should be increased, factor should stay the same.
     assert card.queue == card.type == 2
     assert card.ivl > last_ivl
     assert card.factor == last_factor
+
+    logRev.assert_called_once_with(collection, card, answer_good, None, 1)
 
 
 def test_if_card_parameters_stay_the_same_when_bad_result_predicted():

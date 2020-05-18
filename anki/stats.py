@@ -242,7 +242,7 @@ from revlog where id > ? """+lim, (self.col.sched.dayCutoff-86400)*1000)
             tot, num, _("reviews")))
         tomorrow = self.col.db.scalar("""
 select count() from cards where did in %s and queue in (2,3)
-and due = ?""" % self._limit(), self.col.sched.today+1)
+and round(due) = ?""" % self._limit(), self.col.sched.today+1)
         tomorrow = ngettext("%d card", "%d cards", tomorrow) % tomorrow
         self._line(i, _("Due tomorrow"), tomorrow)
         return self._lineTbl(i)
@@ -252,15 +252,15 @@ and due = ?""" % self._limit(), self.col.sched.today+1)
         if start is not None:
             lim += " and due-:today >= %d" % start
         if end is not None:
-            lim += " and day < %d" % end
+            lim += " and day_calculated < %d" % end
         return self.col.db.all("""
-select round((due-:today)/:chunk,0) as day,
+select round((due-:today)/:chunk,0) as day_calculated,
 sum(case when ivl < 21 then 1 else 0 end), -- yng
 sum(case when ivl >= 21 then 1 else 0 end) -- mtr
 from cards
 where did in %s and queue in (2,3)
 %s
-group by day order by day""" % (self._limit(), lim),
+group by day_calculated order by day_calculated""" % (self._limit(), lim),
                             today=self.col.sched.today,
                             chunk=chunk)
 
@@ -452,10 +452,10 @@ group by day order by day""" % (self._limit(), lim),
             tf = 3600.0 # hours
         return self.col.db.all("""
 select
-(cast((id/1000.0 - :cut) / 86400.0 as int))/:chunk as day,
+(cast((id/1000.0 - :cut) / 86400.0 as int))/:chunk as day_calculated,
 count(id)
 from cards %s
-group by day order by day""" % lim, cut=self.col.sched.dayCutoff,tf=tf, chunk=chunk)
+group by day_calculated order by day_calculated""" % lim, cut=self.col.sched.dayCutoff,tf=tf, chunk=chunk)
 
     def _done(self, num=7, chunk=1):
         lims = []
@@ -475,7 +475,7 @@ group by day order by day""" % lim, cut=self.col.sched.dayCutoff,tf=tf, chunk=ch
             tf = 3600.0 # hours
         return self.col.db.all("""
 select
-(cast((id/1000.0 - :cut) / 86400.0 as int))/:chunk as day,
+(cast((id/1000.0 - :cut) / 86400.0 as int))/:chunk as day_calculated,
 sum(case when type = 0 then 1 else 0 end), -- lrn count
 sum(case when type = 1 and lastIvl < 21 then 1 else 0 end), -- yng count
 sum(case when type = 1 and lastIvl >= 21 then 1 else 0 end), -- mtr count
@@ -488,7 +488,7 @@ sum(case when type = 1 and lastIvl >= 21 then time/1000.0 else 0 end)/:tf,
 sum(case when type = 2 then time/1000.0 else 0 end)/:tf, -- lapse time
 sum(case when type = 3 then time/1000.0 else 0 end)/:tf -- cram time
 from revlog %s
-group by day order by day""" % lim,
+group by day_calculated order by day_calculated""" % lim,
                             cut=self.col.sched.dayCutoff,
                             tf=tf,
                             chunk=chunk)
@@ -508,10 +508,10 @@ group by day order by day""" % lim,
         else:
             lim = ""
         return self.col.db.first("""
-select count(), abs(min(day)) from (select
-(cast((id/1000 - :cut) / 86400.0 as int)+1) as day
+select count(), abs(min(day_calculated)) from (select
+(cast((id/1000 - :cut) / 86400.0 as int)+1) as day_calculated
 from revlog %s
-group by day order by day)""" % lim,
+group by day_calculated order by day_calculated)""" % lim,
                                    cut=self.col.sched.dayCutoff)
 
     # Intervals

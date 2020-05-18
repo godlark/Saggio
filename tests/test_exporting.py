@@ -83,7 +83,7 @@ def test_export_ankipkg():
 
 @nose.with_setup(setup1)
 def test_export_anki_due():
-    deck = getEmptyCol(scheduler='anki.schedv2.Scheduler')
+    deck = getEmptyCol(scheduler='anki.schedv3.Scheduler')
     f = deck.newNote()
     f['Front'] = "foo"
     deck.addNote(f)

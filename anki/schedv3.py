@@ -737,9 +737,9 @@ did = ? and queue = 3 and due <= ? limit ?""",
         ivl = card.ivl if leaving else -(self._delayForGrade(conf, card.left))
         def log():
             self.col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, self.col.usn(), ease,
-                ivl, lastIvl, card.factor, card.timeTaken(), type)
+                ivl, lastIvl, card.factor, card.timeTaken(), type, 0, self.today)
         try:
             log()
         except:
@@ -829,7 +829,7 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
         if PRIORITIZE_TODAY:
             dueToToday = self.col.db.all("""
         select id, did from cards where
-        did in %s and queue = 2 and due = ?
+        did in %s and queue = 2 and round(due) = ?
         %s limit ?""" % (deck_list, sort_by),
                                          self.today, penetration)
             rev_queue.extend(dueToToday)
@@ -962,6 +962,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         early = card.odid and (card.odue > self.today)
         type = early and 3 or 1
 
+        due = self._getDue(card)
         card.lastFactor = card.factor
         card.lastIvl = card.ivl
         if not early:
@@ -975,7 +976,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         else:
             self._rescheduleRev(card, ease, early)
 
-        self.logRev(self.col, card, ease, delay, type)
+        self.logRev(self.col, card, ease, delay, type, due)
 
     def _get_new_ivl_and_factor(self, card, ease):
         last_factor = card.factor
@@ -1119,13 +1120,13 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         self._removeFromFiltered(card)
 
     @staticmethod
-    def logRev(col, card, ease, delay, type):
+    def logRev(col, card, ease, delay, type, due):
         def log():
             col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, col.usn(), ease,
                 card.ivl if delay is None else delay, card.lastIvl, card.factor, card.timeTaken(),
-                type)
+                type, due, Scheduler.daysSinceCreation(col))
         try:
             log()
         except:
@@ -1171,10 +1172,12 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         ivl = min(ivl, conf['maxIvl'])
         return ivl
 
+    def _getDue(self, card):
+        return card.odue if card.odid else card.due
+
     def _daysLate(self, card):
         "Number of days later than scheduled."
-        due = card.odue if card.odid else card.due
-        return max(0, self.today - due)
+        return max(0, self.today - self._getDue(card))
 
     def _updateEarlyRevIvl(self, card, ease):
         card.ivl = self._earlyReviewIvl(card, ease)
@@ -1423,7 +1426,7 @@ where id = ?
     def _updateCutoff(self):
         oldToday = self.today
         # days since col created
-        self.today = self._daysSinceCreation()
+        self.today = self.daysSinceCreation(self.col)
         # end of day cutoff
         self.dayCutoff = self._dayCutoff()
         if oldToday != self.today:
@@ -1460,9 +1463,10 @@ where id = ?
         stamp = time.mktime(date.timetuple())
         return stamp
 
-    def _daysSinceCreation(self):
-        startDate = datetime.datetime.fromtimestamp(self.col.crt)
-        startDate = startDate.replace(hour=self.col.conf.get("rollover", 4),
+    @staticmethod
+    def daysSinceCreation(col):
+        startDate = datetime.datetime.fromtimestamp(col.crt)
+        startDate = startDate.replace(hour=col.conf.get("rollover", 4),
                                       minute=0, second=0, microsecond=0)
         return (time.time() - time.mktime(startDate.timetuple())) // 86400
 

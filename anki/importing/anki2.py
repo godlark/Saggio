@@ -369,7 +369,7 @@ class Anki2Importer(Importer):
         self.dst.db.executemany("""
 insert or ignore into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", cards)
         self.dst.db.executemany("""
-insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""", revlog)
+insert or ignore into revlog values (?,?,?,?,?,?,?,?,?,?,?)""", revlog)
 
     # Media
     ######################################################################

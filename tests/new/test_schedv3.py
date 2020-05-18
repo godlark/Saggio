@@ -74,7 +74,7 @@ def test_if_answer_is_2_then_schedule_as_relearning(getFuzz, logRev):
     assert card.type == 3
     assert new_ivl < last_ivl
     assert new_factor < last_factor
-    logRev.assert_called_once_with(collection, card, first_answer_hard, 0, 1)
+    logRev.assert_called_once_with(collection, card, first_answer_hard, 0, 1, 0)
 
     # ACT
     # Graduate a relearning card
@@ -169,7 +169,7 @@ def test_if_answer_is_3_then_schedule_with_bigger_ivl(getFuzz, logRev):
     assert card.factor == last_factor
     assert last_ivl * card.factor / 1000 == card.ivl
 
-    logRev.assert_called_once_with(collection, card, answer_good, None, 1)
+    logRev.assert_called_once_with(collection, card, answer_good, None, 1, 0)
 
 
 @patch('anki.schedv3.Scheduler.getFuzz')

@@ -706,9 +706,9 @@ did = ? and queue = 3 and due <= ? limit ?""",
         ivl = card.ivl if leaving else -(self._delayForGrade(conf, card.left))
         def log():
             self.col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, self.col.usn(), ease,
-                ivl, lastIvl, card.factor, card.timeTaken(), type)
+                ivl, lastIvl, card.factor, card.timeTaken(), type, 0, self.today)
         try:
             log()
         except:
@@ -883,10 +883,10 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
     def _logRev(self, card, ease, delay, type, due):
         def log():
             self.col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, self.col.usn(), ease,
                 -delay or card.ivl, card.lastIvl, card.factor, card.timeTaken(),
-                type)
+                type, 0, self.today)
         try:
             log()
         except:

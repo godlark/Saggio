@@ -285,7 +285,7 @@ def test_if_card_parameters_increase_when_hard_answered_and_wrong_answer_predict
     # shouldn't update ivl neither factor
     assert card.queue == card.type == 2
     assert card.ivl == new_ivl
-    assert card.due == collection.sched.today + card.ivl
+    assert card.due == int(round(collection.sched.today + card.ivl))
     assert card.factor == new_factor
     assert card.lapses == 0
 
@@ -473,3 +473,25 @@ def test_nextIvlStr():
 
     # Easy answer
     assert "11.8mo" == collection.sched.nextIvlStr(card, 4, short=True)
+
+
+@patch('anki.schedv3.Scheduler.scatter_fairly_cards_from_different_decks')
+def test_scatter_fairly_cards_from_different_decks_is_used(scatter_fairly_cards_from_different_decks):
+    collection = getEmptyCol()
+    ivl = 100
+    card1 = create_learning_card(collection, ivl)
+    card2 = create_learning_card(collection, ivl)
+    card3 = create_learning_card(collection, ivl)
+    card4 = create_learning_card(collection, ivl)
+    card5 = create_learning_card(collection, ivl)
+    cards = [card1, card2, card3, card4, card5]
+    card_ids = [card.id for card in cards]
+    scatter_fairly_cards_from_different_decks.return_value = list(reversed(card_ids))
+
+    # ACT
+    returned_cards = [collection.sched.getCard(), collection.sched.getCard(), collection.sched.getCard(),
+                      collection.sched.getCard(), collection.sched.getCard()]
+
+    # ASSERT
+    print(card_ids)
+    assert [card.id for card in returned_cards] == card_ids

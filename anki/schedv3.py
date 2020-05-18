@@ -807,10 +807,6 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
             self._revQueue = self._get_rev_queue_per_subdeck(sort_by, lim)
 
             if self._revQueue:
-                # fixme: as soon as a card is answered, this is no longer consistent
-                r = random.Random()
-                # r.seed(self.today) #same seed in case user edits card.
-                r.shuffle(self._revQueue)
                 return True
         if self.revCount:
             # if we didn't get a card but the count is non-zero,

@@ -493,5 +493,4 @@ def test_scatter_fairly_cards_from_different_decks_is_used(scatter_fairly_cards_
                       collection.sched.getCard(), collection.sched.getCard()]
 
     # ASSERT
-    print(card_ids)
     assert [card.id for card in returned_cards] == card_ids

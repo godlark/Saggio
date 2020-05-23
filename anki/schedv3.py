@@ -484,6 +484,7 @@ select count() from cards where did in %s and queue = 4
         self._lrnDayQueue = []
         self._lrnDids = self.col.decks.active()[:]
 
+    # TODO: What is learning and what learning day
     # sub-day learning
     def _fillLrn(self):
         if not self.lrnCount:
@@ -698,7 +699,12 @@ did = ? and queue = 3 and due <= ? limit ?""",
             return card.ivl
         if not early:
             # graduate
+            # TODO: Write test for this
             ideal = conf['ints'][0]
+            if card.factor:
+                ideal *= math.sqrt(card.factor/1000)
+            else:
+                ideal *= math.sqrt(conf['initialFactor']/1000)
         else:
             # early remove
             ideal = conf['ints'][1]
@@ -706,11 +712,20 @@ did = ? and queue = 3 and due <= ? limit ?""",
             ideal = self._fuzzedIvl(ideal)
         return ideal
 
+    def _fuzz_value(self, min, max, expected):
+        if self.getFuzz():
+            return random.uniform(min * expected, max * expected)
+        else:
+            return expected
+
     def _rescheduleNew(self, card, conf, early):
         "Reschedule a new card that's graduated for the first time."
+        card.factor = self._fuzz_value(0.8, 1.2, conf['initialFactor'])
+        card.factor = round(card.factor)
+        card.factor = min(card.factor, 10000)
+        card.factor = max(card.factor, 1300)
         card.ivl = self._graduatingIvl(card, conf, early)
         card.due = self.today+card.ivl
-        card.factor = conf['initialFactor']
         card.type = card.queue = 2
 
     def _logLrn(self, card, ease, conf, leaving, type, lastLeft):
@@ -1114,7 +1129,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
     def _fuzzedIvl(self, ivl):
         min, max = self._fuzzIvlRange(ivl)
-        return random.uniform(min, max)
+        return self._fuzz_value(min/ivl, max/ivl, ivl)
 
     def _fuzzIvlRange(self, ivl):
         # TODO: Need evidence for those ranges

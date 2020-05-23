@@ -39,6 +39,16 @@ def create_late_learning_card(collection, ivl, late):
     return card
 
 
+def create_new_card(collection):
+    note = collection.newNote()
+    note['Front'] = "one"
+    collection.addNote(note)
+    card = note.cards()[0]
+    card.type = card.queue = 0
+    card.flush()
+    return card
+
+
 @patch('anki.schedv3.Scheduler.logRev')
 @patch('anki.schedv3.Scheduler.getFuzz')
 def test_if_answer_is_2_then_schedule_as_relearning(getFuzz, logRev):
@@ -328,6 +338,36 @@ def test_if_ivlFct_is_not_used(getFuzz, confForDid):
     assert card.queue == card.type == 2
     assert card.factor == last_factor
     assert card.factor / 1000 * last_ivl == card.ivl
+
+
+@patch('anki.decks.DeckManager.confForDid')
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_initial_factor_is_used(getFuzz, confForDid):
+    # ARRANGE
+    getFuzz.return_value = False
+    graduate_immediately_ivl = 4
+    graduate_normally_ivl = 2
+    confForDid.return_value = {
+        'new': {'order': NEW_CARDS_RANDOM, 'perDay': 100, 'initialFactor': 4000, 'delays': [0, 2, 10],
+                'ints': [graduate_normally_ivl, graduate_immediately_ivl]},
+        'rev': {'perDay': 100, 'maxIvl': 1024},
+        'dyn': {},
+        'maxTaken': 60,
+    }
+    collection = getEmptyCol()
+    card = create_new_card(collection)
+    answer_gradue_immediately = 4
+
+    # ACT
+    collection.reset()
+    card = collection.sched.getCard()
+    collection.sched.answerCard(card, answer_gradue_immediately)
+
+    # ASSERT
+    # Pass the card with "Good". Ivl should be increased and factor should stay the same
+    assert card.queue == card.type == 2
+    assert card.factor == 4000
+    assert card.ivl == graduate_immediately_ivl
 
 
 @patch('anki.schedv3.Scheduler.getFuzz')

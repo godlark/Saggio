@@ -341,7 +341,7 @@ class AnkiCollectionPackageExporter(AnkiPackageExporter):
     def doExport(self, z, path):
         # close our deck & write it into the zip file, and reopen
         self.count = self.col.cardCount()
-        v2 = self.col.schedVer() != 1
+        v2 = self.col.conf['usedScheduler'] != 'anki.sched.Scheduler'
         self.col.close()
         if not v2:
             z.write(self.col.path, "collection.anki2")

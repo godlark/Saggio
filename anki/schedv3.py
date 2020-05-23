@@ -1466,8 +1466,6 @@ where id = ?
     @staticmethod
     def daysSinceCreation(col):
         startDate = datetime.datetime.fromtimestamp(col.crt)
-        startDate = startDate.replace(hour=col.conf.get("rollover", 4),
-                                      minute=0, second=0, microsecond=0)
         return (time.time() - time.mktime(startDate.timetuple())) // 86400
 
     # Deck finished state

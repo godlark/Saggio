@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from anki.consts import NEW_CARDS_RANDOM
 from tests.shared import getEmptyCol as _getEmptyCol
 
 
@@ -137,8 +138,10 @@ def test_if_answer_is_1_then_schedule_as_relearning():
 
 
 @patch('anki.schedv3.Scheduler.logRev')
-def test_if_answer_is_3_then_schedule_with_bigger_ivl(logRev):
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_answer_is_3_then_schedule_with_bigger_ivl(getFuzz, logRev):
     # ARRANGE
+    getFuzz.return_value = False
     last_ivl = 100
     collection = getEmptyCol()
     card = create_learning_card(collection, last_ivl)
@@ -153,8 +156,8 @@ def test_if_answer_is_3_then_schedule_with_bigger_ivl(logRev):
     # ASSERT
     # Pass the card. Ivl should be increased, factor should stay the same.
     assert card.queue == card.type == 2
-    assert card.ivl > last_ivl
     assert card.factor == last_factor
+    assert last_ivl * card.factor / 1000 == card.ivl
 
     logRev.assert_called_once_with(collection, card, answer_good, None, 1)
 
@@ -296,6 +299,35 @@ def test_if_answer_is_4_then_schedule_with_bigger_ivl_and_factor():
     assert card.factor > last_factor
     # Both factor and ivl are increased, and than ivl is multiplied by new factor
     assert card.ivl > last_ivl * card.factor / 1000
+
+
+@patch('anki.decks.DeckManager.confForDid')
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_if_ivlFct_is_not_used(getFuzz, confForDid):
+    # ARRANGE
+    getFuzz.return_value = False
+    confForDid.return_value = {
+        'new': {'order': NEW_CARDS_RANDOM, 'perDay': 100},
+        'rev': {'perDay': 100, 'ivlFct': 2, 'maxIvl': 1024},
+        'dyn': {},
+        'maxTaken': 60,
+    }
+    last_ivl = 100
+    collection = getEmptyCol()
+    card = create_learning_card(collection, last_ivl)
+    last_factor = card.factor
+    answer_good = 3
+
+    # ACT
+    collection.reset()
+    card = collection.sched.getCard()
+    collection.sched.answerCard(card, answer_good)
+
+    # ASSERT
+    # Pass the card with "Good". Ivl should be increased and factor should stay the same
+    assert card.queue == card.type == 2
+    assert card.factor == last_factor
+    assert card.factor / 1000 * last_ivl == card.ivl
 
 
 @patch('anki.schedv3.Scheduler.getFuzz')

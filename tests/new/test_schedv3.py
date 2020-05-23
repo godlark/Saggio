@@ -455,3 +455,21 @@ def test_scatter_fairly_cards_from_different_decks_returns_the_same_cards():
 
     # ASSERT
     assert card_ids == results
+
+
+def test_nextIvlStr():
+    last_ivl = 100
+    collection = getEmptyCol()
+    card = create_learning_card(collection, last_ivl)
+
+    # Wrong answer
+    assert "<10m" == collection.sched.nextIvlStr(card, 1, short=True)
+
+    # Hard answer
+    assert "2.7mo" == collection.sched.nextIvlStr(card, 2, short=True)
+
+    # Good answer
+    assert "8.3mo" == collection.sched.nextIvlStr(card, 3, short=True)
+
+    # Easy answer
+    assert "11.8mo" == collection.sched.nextIvlStr(card, 4, short=True)

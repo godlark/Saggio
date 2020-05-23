@@ -963,15 +963,10 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         type = early and 3 or 1
 
         card.lastFactor = card.factor
+        card.lastIvl = card.ivl
         if not early:
             # We shouldn't update any factors when early review happens
-            card.factor = self._newFactor(card, ease)
-
-        card.lastIvl = card.ivl
-        if card.factor > card.lastFactor:
-            self._increaseIvl(card)
-        elif card.factor < card.lastFactor:
-            self._decreaseIvl(card)
+            card.ivl, card.factor = self._get_new_ivl_and_factor(card, ease)
 
         delay = None
         if ease == 1 or ease == 2:
@@ -982,39 +977,52 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
         self.logRev(self.col, card, ease, delay, type)
 
-    def _decreaseIvl(self, card):
+    def _get_new_ivl_and_factor(self, card, ease):
+        last_factor = card.factor
+        factor = self._newFactor(card, ease)
+        ivl = card.ivl
+        if factor > last_factor:
+            return self._increaseIvl(last_factor, factor, ivl)
+        elif factor < last_factor:
+            return self._decreaseIvl(last_factor, factor, ivl)
+        return ivl, factor
+
+    def _decreaseIvl(self, lastFactor, factor, ivl):
         # TODO: Depends on card.lastFactor
         # It's done this way because on late stages it's more probably that we forgot card because we learned
         # another similar card than that the card is harder than expected
         max_ivl = 1024
 
-        original_factor = card.factor
+        original_factor = factor
 
-        k = math.log(min(max_ivl, card.ivl), original_factor / 1000)
+        k = math.log(min(max_ivl, ivl), original_factor / 1000)
         l = math.log(max_ivl, original_factor / 1000)
         decreasing_factor_part = 1 - k / l
 
-        decreasing_factor_ratio = 1 - original_factor / card.lastFactor
-        card.factor = card.lastFactor * (1 - decreasing_factor_part * decreasing_factor_ratio)
-        card.ivl = card.ivl * original_factor / card.factor
+        decreasing_factor_ratio = 1 - original_factor / lastFactor
+        factor = lastFactor * (1 - decreasing_factor_part * decreasing_factor_ratio)
+        ivl = ivl * original_factor / factor
+        return ivl, factor
 
-    def _increaseIvl(self, card):
+    def _increaseIvl(self, lastFactor, factor, ivl):
         # TODO: Depends on card.lastFactor
         # It's done this way because on early stages it's more probably that we already know the card
         # than the card is easy
         max_ivl = 1024
 
-        original_factor = card.factor
+        original_factor = factor
 
-        k = math.log(min(max_ivl, card.ivl), original_factor / 1000)
+        k = math.log(min(max_ivl, ivl), original_factor / 1000)
         l = math.log(max_ivl, original_factor / 1000)
         increasing_factor_part = k/l
 
-        increasing_factor_ratio = original_factor / card.lastFactor - 1
-        card.factor = card.lastFactor * (1 + increasing_factor_part * increasing_factor_ratio)
-        card.ivl = card.ivl * original_factor / card.factor
+        increasing_factor_ratio = original_factor / lastFactor - 1
+        factor = lastFactor * (1 + increasing_factor_part * increasing_factor_ratio)
+        ivl = ivl * original_factor / factor
+        return ivl, factor
 
     def _newFactor(self, card, ease):
+        # TODO: Make it decimal
         curr_ivl = max(1000 / card.factor, card.ivl)
 
         # R = e ** (-k * t/S)
@@ -1066,6 +1074,14 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         factor = min(10000, factor)
         return factor
 
+    def _get_next_ivl(self, card, ivl, factor, last_factor, ease, fuzz=True):
+        if ease == 1:
+            return self._constrainedIvl(ivl / factor * 1000, self._revConf(card), fuzz=fuzz)
+        elif ease == 2:
+            return self._constrainedIvl(ivl * factor / last_factor, self._revConf(card), fuzz=fuzz)
+        else:
+            return self._constrainedIvl(ivl * factor / 1000, self._revConf(card), fuzz=fuzz)
+
     def _rescheduleLapse(self, card, ease):
         conf = self._lapseConf(card)
 
@@ -1074,10 +1090,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
             card.lapses += 1
         suspended = self._checkLeech(card, conf) and card.queue == -1
 
-        if ease == 1:
-            card.ivl = self._constrainedIvl(card.ivl / card.factor * 1000, self._revConf(card), fuzz=self.getFuzz())
-        if ease == 2:
-            card.ivl = self._constrainedIvl(card.ivl * card.factor / card.lastFactor, self._revConf(card), fuzz=self.getFuzz())
+        card.ivl = self._get_next_ivl(card, card.ivl, card.factor, card.lastFactor, ease)
 
         if conf['delays'] and not suspended:
             card.type = 3
@@ -1098,7 +1111,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         if early:
             self._updateEarlyRevIvl(card, ease)
         else:
-            card.ivl = self._constrainedIvl(card.ivl * card.factor / 1000, self._revConf(card), fuzz=self.getFuzz())
+            card.ivl = self._get_next_ivl(card, card.ivl, card.factor, card.lastFactor, ease)
 
         card.due = self.today + card.ivl
 
@@ -1123,9 +1136,13 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
     # Interval management
     ##########################################################################
 
-    def _nextRevIvl(self, card, ease, fuzz):
-        new_factor = self._newFactor(card, ease)
-        return self._constrainedIvl(card.ivl * new_factor / 1000, self._revConf(card), fuzz)
+    def _nextLapseIvl(self, card, ease):
+        ivl, factor = self._get_new_ivl_and_factor(card, ease)
+        return self._get_next_ivl(card, ivl, factor, card.factor, ease, fuzz=False)
+
+    def _nextRevIvl(self, card, ease):
+        ivl, factor = self._get_new_ivl_and_factor(card, ease)
+        return self._get_next_ivl(card, ivl, factor, card.factor, ease, fuzz=False)
 
     def _fuzzedIvl(self, ivl):
         min, max = self._fuzzIvlRange(ivl)
@@ -1158,9 +1175,6 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         "Number of days later than scheduled."
         due = card.odue if card.odid else card.due
         return max(0, self.today - due)
-
-    def _updateRevIvl(self, card, ease):
-        card.ivl = self._nextRevIvl(card, ease, fuzz=True)
 
     def _updateEarlyRevIvl(self, card, ease):
         card.ivl = self._earlyReviewIvl(card, ease)
@@ -1544,14 +1558,14 @@ To study outside of the normal schedule, click the Custom Study button below."""
             conf = self._lapseConf(card)
             if conf['delays']:
                 return conf['delays'][0]*60
-            return self._lapseIvl(card, conf)*86400
+            return self._nextLapseIvl(card, conf)*86400
         else:
             # review
             early = card.odid and (card.odue > self.today)
             if early:
                 return self._earlyReviewIvl(card, ease)*86400
             else:
-                return self._nextRevIvl(card, ease, fuzz=False)*86400
+                return self._nextRevIvl(card, ease)*86400
 
     # this isn't easily extracted from the learn code
     def _nextLrnIvl(self, card, ease):

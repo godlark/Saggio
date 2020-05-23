@@ -1,4 +1,5 @@
 # coding: utf-8
+from unittest.mock import patch
 
 import nose, os, tempfile
 import pytest
@@ -82,7 +83,10 @@ def test_export_ankipkg():
     e.exportInto(newname)
 
 @nose.with_setup(setup1)
-def test_export_anki_due():
+@patch('anki.schedv3.Scheduler.getFuzz')
+def test_export_anki_due(getFuzz):
+    getFuzz.return_value = False
+
     deck = getEmptyCol(scheduler='anki.schedv3.Scheduler')
     f = deck.newNote()
     f['Front'] = "foo"
@@ -92,11 +96,11 @@ def test_export_anki_due():
     c = deck.sched.getCard()
     deck.sched.answerCard(c, 3)
     deck.sched.answerCard(c, 3)
-    # should have ivl of 1, due on day 11
+    # should have ivl of 1, due on day 12
     assert pytest.approx(1.48, c.ivl, 0.01)
-    assert c.due == 11
+    assert c.due == 12
     assert deck.sched.today == 10
-    assert c.due - deck.sched.today == 1
+    assert c.due - deck.sched.today == 2
     # export
     e = AnkiExporter(deck)
     e.includeSched = True
@@ -111,7 +115,7 @@ def test_export_anki_due():
     imp.run()
     c = deck2.getCard(c.id)
     deck2.sched.reset()
-    assert c.due - deck2.sched.today == 1
+    assert c.due - deck2.sched.today == 2
 
 # @nose.with_setup(setup1)
 # def test_export_textcard():

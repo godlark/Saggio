@@ -272,7 +272,6 @@ body {{ zoom: {}; {} }}
 
 <body>{}</body>
 </html>""".format(self.title, self.zoomFactor(), fontspec, widgetspec, head, body)
-        #print(html)
         self.setHtml(html)
 
     def webBundlePath(self, path):

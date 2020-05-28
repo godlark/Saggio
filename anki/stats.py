@@ -135,6 +135,26 @@ body {background-image: url(data:image/png;base64,%s); }
 @media print {
     .section { page-break-inside: avoid; padding-top: 5mm; }
 }
+.legend {
+		display: block;
+		-webkit-padding-start: 2px;
+		-webkit-padding-end: 2px;
+		border-width: initial;
+		border-style: none;
+		border-color: initial;
+		border-image: initial;
+		padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+}
+
+.legendLayer .background {
+    fill: rgba(255, 255, 255, 0.85);
+    stroke: rgba(0, 0, 0, 0.85);
+    stroke-width: 1;
+}
+
 </style>
 """
 
@@ -215,8 +235,8 @@ from revlog where id > ? """+lim, (self.col.sched.dayCutoff-86400)*1000)
             tot += day[1]+day[2]
             totd.append((day[0], tot))
         data = [
-            dict(data=mtr, color=colMature, label=_("Mature")),
-            dict(data=yng, color=colYoung, label=_("Young")),
+            dict(data=mtr, color=colMature, label=_("Mature"), bars={"show": True}),
+            dict(data=yng, color=colYoung, label=_("Young"), bars={"show": True}),
         ]
         if len(totd) > 1:
             data.append(
@@ -283,7 +303,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
         d = data
         conf = dict(
             xaxis=dict(tickDecimals=0, max=0.5),
-            yaxes=[dict(min=0), dict(position="right",min=0)])
+            yaxes=[dict(min=0), dict(position="right", min=0)])
         if days is not None:
             conf['xaxis']['min'] = -days+0.5
         def plot(id, data, ylabel, ylabel2):
@@ -325,7 +345,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
         d = data
         conf = dict(
             xaxis=dict(tickDecimals=0, max=0.5),
-            yaxes=[dict(min=0), dict(position="right",min=0)])
+            yaxes=[dict(min=0), dict(position="right", min=0)])
         if days is not None:
             conf['xaxis']['min'] = -days+0.5
         def plot(id, data, ylabel, ylabel2):
@@ -429,7 +449,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
         for (n, col, lab) in spec:
             if len(totd[n]) and totcnt[n]:
                 # bars
-                ret.append(dict(data=sep[n], color=col, label=lab))
+                ret.append(dict(data=sep[n], color=col, label=lab, bars={"show": True}))
                 # lines
                 ret.append(dict(
                     data=totd[n], color=col, label=None, yaxis=2,
@@ -535,12 +555,12 @@ group by day_calculated order by day_calculated)""" % lim,
         txt = self._title(_("Intervals"),
                           _("Delays until reviews are shown again."))
         txt += self._graph(id="ivl", ylabel2=_("Percentage"), data=[
-            dict(data=ivls, color=colIvl),
+            dict(data=ivls, color=colIvl, bars={"show": True}),
             dict(data=totd, color=colCum, yaxis=2,
              bars={'show': False}, lines=dict(show=True), stack=False)
             ], conf=dict(
                 xaxis=dict(min=-0.5, max=ivlmax+0.5),
-                yaxes=[dict(), dict(position="right", max=105)]))
+                yaxes=[dict(mode="log"), dict(mode="log", position="right", max=105)]))
         i = []
         self._line(i, _("Average interval"), fmtTimeSpan(avg*86400))
         self._line(i, _("Longest interval"), fmtTimeSpan(max_*86400))
@@ -579,17 +599,17 @@ select count(), avg(ivl), max(ivl) from cards where did in %s and queue = 2""" %
                 ease += 10
             n = types[type]
             d[n].append((ease, cnt))
-        ticks = [[1,1],[2,2],[3,3], # [4,4]
-                 [6,1],[7,2],[8,3],[9,4],
-                 [11, 1],[12,2],[13,3],[14,4]]
+        ticks = [[1,"1"],[2,"2"],[3,"3"], # [4,4]
+                 [6,"1"],[7,"2"],[8,"3"],[9,"4"],
+                 [11,"1"],[12,"2"],[13,"3"],[14,"4"]]
         if not self.col.isFirstVersionSchedulerUsed():
-            ticks.insert(3, [4,4])
+            ticks.insert(3, [4,"4"])
         txt = self._title(_("Answer Buttons"),
                           _("The number of times you have pressed each button."))
         txt += self._graph(id="ease", data=[
-            dict(data=d['lrn'], color=colLearn, label=_("Learning")),
-            dict(data=d['yng'], color=colYoung, label=_("Young")),
-            dict(data=d['mtr'], color=colMature, label=_("Mature")),
+            dict(data=d['lrn'], color=colLearn, bars={"show": True}, label=_("Learning")),
+            dict(data=d['yng'], color=colYoung, bars={"show": True}, label=_("Young")),
+            dict(data=d['mtr'], color=colMature, bars={"show": True}, label=_("Mature")),
             ], type="bars", conf=dict(
                 xaxis=dict(ticks=ticks, min=0, max=15)),
             ylabel=_("Answers"))
@@ -689,9 +709,9 @@ order by thetype, ease""" % (ease4repl, lim))
         txt = self._title(_("Hourly Breakdown"),
                           _("Review success rate for each hour of the day."))
         txt += self._graph(id="hour", data=[
-            dict(data=shifted, color=colCum, label=_("% Correct")),
+            dict(data=shifted, color=colCum, label=_("% Correct"), bars=dict(show=True)),
             dict(data=counts, color=colHour, label=_("Answers"), yaxis=2,
-             bars=dict(barWidth=0.2), stack=False)
+             bars=dict(barWidth=0.2, show=True), stack=False)
         ], conf=dict(
             xaxis=dict(ticks=[[0, _("4AM")], [6, _("10AM")],
                            [12, _("4PM")], [18, _("10PM")], [23, _("3AM")]]),
@@ -813,13 +833,19 @@ from cards where did in %s""" % self._limit())
                type="bars", ylabel=_("Cards"), timeTicks=True, ylabel2=""):
         # display settings
         if type == "pie":
-            conf['legend'] = {'container': "#%sLegend" % id, 'noColumns':2}
+            conf['legend'] = {'noColumns':2, 'show': True}
         else:
-            conf['legend'] = {'container': "#%sLegend" % id, 'noColumns':10}
+            conf['legend'] = {'noColumns':10, 'show': True}
         conf['series'] = dict(stack=True)
-        if not 'yaxis' in conf:
+
+        if not 'yaxis' in conf and not 'yaxes' in conf:
             conf['yaxis'] = {}
-        conf['yaxis']['labelWidth'] = 40
+        if 'yaxes' in conf:
+            for yaxis in conf['yaxes']:
+                yaxis['labelWidth'] = 40
+        if 'yaxis' in conf:
+            conf['yaxis']['labelWidth'] = 40
+
         if 'xaxis' not in conf:
             conf['xaxis'] = {}
         if timeTicks:
@@ -827,10 +853,10 @@ from cards where did in %s""" % self._limit())
         # types
         width = self.width
         height = self.height
-        if type == "bars":
-            conf['series']['bars'] = dict(
-                show=True, barWidth=0.8, align="center", fill=0.7, lineWidth=0)
-        elif type == "barsLine":
+        # if type == "bars":
+        #     conf['series']['bars'] = dict(
+        #         show=True, barWidth=0.8, align="center", fill=0.7, lineWidth=0)
+        if type == "barsLine":
             print("deprecated - use 'bars' instead")
             conf['series']['bars'] = dict(
                 show=True, barWidth=0.8, align="center", fill=0.7, lineWidth=3)
@@ -865,7 +891,7 @@ font-weight: bold;
 ">%(ylab)s</div></td>
 
 <td>
-<center><div id=%(id)sLegend></div></center>
+<center><div class="legend" id=%(id)sLegend></div></center>
 <div id="%(id)s" style="width:%(w)spx; height:%(h)spx;"></div>
 </td>
 
@@ -873,24 +899,13 @@ font-weight: bold;
  -webkit-transform: rotate(90deg) translateY(65px);
 font-weight: bold;
 ">%(ylab2)s</div></td>
-
+:
 </tr></table>
 <script>
 $(function () {
     var conf = %(conf)s;
-    if (conf.timeTicks) {
-        conf.xaxis.tickFormatter = function (val, axis) {
-            return val.toFixed(0)+conf.timeTicks;
-        }
-    }
-    conf.yaxis.minTickSize = 1;
-    // prevent ticks from having decimals (use whole numbers instead)
-    conf.yaxis.tickDecimals = 0;
-    conf.yaxis.tickFormatter = function (val, axis) {
-            // Just in case we get ticks with decimals, render to one decimal position.  If it's
-            // a whole number then render without any decimal (i.e. without the trailing .0).
-            return val === Math.round(val) ? val.toFixed(0) : val.toFixed(1);
-    }
+    conf.legend.container = $("#%(id)sLegend")[0];
+    conf.legend.backgroundColor = "white";
     if (conf.series.pie) {
         conf.series.pie.label.formatter = function(label, series){
             return '<div class=pielabel>'+Math.round(series.percent)+'%%</div>';

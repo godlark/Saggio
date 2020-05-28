@@ -8,30 +8,30 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/copyleft/agpl.html
 
 from collections import Counter
+from statistics import quantiles
 from anki.stats import CollectionStats
 from anki.hooks import wrap
 from anki import version
 
 colCum = "rgba(0,0,0,0.9)"
 colFactor = "#07c"
-factormin = 1300
-factormax = 3300
 
 
 def factorGraph(self):
     data = _easefactors(self)
-    realmin = min(factormin, min(data))
-    realmax = max(factormax, max(data))
 
+    data_quantiles = quantiles(data, n=100)
+    filtered_data = [item for item in data if data_quantiles[9] < item < data_quantiles[89]]
+    realmin = min(filtered_data)
+    realmax = max(filtered_data)
     realdiff = realmax - realmin
     realspan = realdiff // 20
 
-    data = [(item // realspan) * realspan for item in data]
+    data = [round(item / realspan) * realspan for item in data]
     data = [item / 10 for item in data]
 
     if not data:
         return ""
-    factors = []
     all = len(data)
     c = Counter(data)
     factors = sorted(c.items(), key=lambda x: x[0])
@@ -47,30 +47,20 @@ def factorGraph(self):
                       _('''\
 Index from the evaluation history in reviews to decide the next interval.''')
                       )
-    if version < '2.1.12':
-        txt += self._graph(id="factor", timeTicks=False, ylabel2=_("Percentage"), data=[
-            dict(data=factors, color=colFactor, bars=dict(barWidth=realspan / 15)),
-            dict(data=totd, color=colCum, yaxis=2,
-                 bars={'show': False}, lines=dict(show=True), stack=False)
-        ], conf=dict(
-            xaxis=dict(min=realmin / 10 - 5, max=realmax / 10 + 5),
-            yaxes=[dict(min=0), dict(position="right", min=0, max=105)]))
-    else:
-        txt += self._graph(id="factor", ylabel2=_("Percentage"), data=[
-            dict(data=factors, color=colFactor, bars=dict(barWidth=realspan / 15)),
-            dict(data=totd, color=colCum, yaxis=2,
-                 bars={'show': False}, lines=dict(show=True), stack=False)
-        ], conf=dict(
-            xaxis=dict(min=realmin / 10 - 5, max=realmax / 10 + 5,
-                       ticks=[
-                           [realmin / 10, _(realmin / 10)],
-                           [(realmin + realdiff / 4) / 10, _((realmin + realdiff / 4) / 10)],
-                           [(realmin + realdiff / 2) / 10, _((realmin + realdiff / 2) / 10)],
-                           [(realmin + realdiff * 0.75) / 10, _((realmin + realdiff * 0.75) / 10)],
-                           [realmax / 10, _(realmax / 10)]
-                       ]
-                       ),
-            yaxes=[dict(min=0), dict(position="right", min=0, max=105)]))
+    ticks = []
+    for i in range(5):
+        realtick = round((realmin + i * realdiff / 4) / 10, 1)
+        ticks.append([realtick, _(str(realtick))])
+
+    txt += self._graph(id="factor", ylabel2=_("Percentage"), data=[
+        dict(data=factors, color=colFactor, bars=dict(show=True)),
+        dict(data=totd, color=colCum, yaxis=2,
+             bars={'show': False}, lines=dict(show=True), stack=False)
+    ], conf=dict(
+        xaxis=dict(min=realmin / 10 - 10, max=realmax / 10 + 10,
+                   ticks=ticks
+                   ),
+        yaxes=[dict(min=0), dict(position="right", min=0, max=105)]))
     i = []
     if low:
         self._line(i, _("Lowest ease"), "%d%%" % low)

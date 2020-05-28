@@ -12,20 +12,30 @@ a.deck:hover {
     text-decoration: underline;
 }
 
+tr.deck:nth-child(2n) {
+    background-color: white;
+}
+
 tr.deck td {
-    border-bottom: 1px solid #e7e7e7;
+    padding: 10px;
 }
 
 tr.top-level-drag-row td {
     border-bottom: 1px solid transparent;
+    border-top: 1px solid transparent;
 }
 
 td {
     white-space: nowrap;
 }
 
+tr.deck td:first-of-type {
+    font-weight: bold;
+}
+
 tr.drag-hover td {
     border-bottom: 1px solid #aaa;
+    border-top: 1px solid #aaa;
 }
 
 body {

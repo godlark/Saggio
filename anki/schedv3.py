@@ -793,36 +793,41 @@ did in %s and queue = 2 and due <= ? limit %d)""" % (
     def _resetRev(self):
         self._resetRevCount()
         self._revQueue = []
+        self._decks_penetrated = False
+
+    def _set_rev_queue(self):
+        lim = Scheduler._currentRevLimit(self)
+        if lim:
+            lim = min(self.queueLimit, lim)
+            sort_by = CUSTOM_SORT if CUSTOM_SORT else SORT_BY_OVERDUES
+            self._revQueue = self._get_rev_queue_per_subdeck(sort_by, lim)
+            if self._revQueue:
+                return True
+        self._decks_penetrated = True
+        return False
 
     def _fillRev(self):
         if self._revQueue:
             return True
         if not self.revCount:
             return False
+        if self._decks_penetrated:
+            return False
 
-        lim = Scheduler._currentRevLimit(self)
-        if lim:
-            lim = min(self.queueLimit, lim)
-            sort_by = CUSTOM_SORT if CUSTOM_SORT else SORT_BY_OVERDUES
-            self._revQueue = self._get_rev_queue_per_subdeck(sort_by, lim)
-
-            if self._revQueue:
-                return True
-        if self.revCount:
-            # if we didn't get a card but the count is non-zero,
-            # we need to check again for any cards that were
-            # removed from the queue but not buried
-            self._resetRev()
-            return self._fillRev()
+        if self._set_rev_queue():
+            return True
 
         if self.revCount:
             # if we didn't get a card but the count is non-zero,
             # we need to check again for any cards that were
             # removed from the queue but not buried
             self._resetRev()
-            return self._fillRev()
+            return self._set_rev_queue()
 
     def _get_rev_queue_per_subdeck(self, sort_by, penetration):
+        if penetration > 1024 * 1024:
+            return []
+
         deck_list = ids2str(self.col.decks.active())
         rev_queue = []
 

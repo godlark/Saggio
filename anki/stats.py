@@ -5,6 +5,9 @@
 import time
 import datetime
 import json
+from statistics import quantiles
+from collections import Counter
+
 
 from anki.utils import fmtTimeSpan, ids2str
 from anki.lang import _, ngettext
@@ -87,6 +90,8 @@ class CardStats:
 
 colYoung = "#7c7"
 colMature = "#070"
+colOld = "#030"
+colAdolescent = "#4a0"
 colCum = "rgba(0,0,0,0.9)"
 colLearn = "#00F"
 colRelearn = "#c00"
@@ -130,7 +135,6 @@ class CollectionStats:
     css = """
 <style>
 h1 { margin-bottom: 0; margin-top: 1em; }
-.pielabel { text-align:center; padding:0px; color:white; }
 body {background-image: url(data:image/png;base64,%s); }
 @media print {
     .section { page-break-inside: avoid; padding-top: 5mm; }
@@ -539,46 +543,62 @@ group by day_calculated order by day_calculated)""" % lim,
 
     def ivlGraph(self):
         (ivls, all, avg, max_) = self._ivls()
+        ivlmax, ivlmin, ivls = self.filter_by_quantiles(9, 89, ivls)
+
         tot = 0
         totd = []
-        if not ivls or not all:
-            return ""
         for (grp, cnt) in ivls:
             tot += cnt
             totd.append((grp, tot/float(all)*100))
-        if self.type == 0:
-            ivlmax = 31
-        elif self.type == 1:
-            ivlmax = 52
-        else:
-            ivlmax = max(5, ivls[-1][0])
         txt = self._title(_("Intervals"),
-                          _("Delays until reviews are shown again."))
+                          _("Delays until reviews are shown again in days. Statistics are based on cards reviewed recently."))
         txt += self._graph(id="ivl", ylabel2=_("Percentage"), data=[
             dict(data=ivls, color=colIvl, bars={"show": True}),
             dict(data=totd, color=colCum, yaxis=2,
              bars={'show': False}, lines=dict(show=True), stack=False)
             ], conf=dict(
                 xaxis=dict(min=-0.5, max=ivlmax+0.5),
-                yaxes=[dict(mode="log"), dict(mode="log", position="right", max=105)]))
+                yaxes=[dict(mode="log"), dict(position="right", max=105)]))
         i = []
         self._line(i, _("Average interval"), fmtTimeSpan(avg*86400))
         self._line(i, _("Longest interval"), fmtTimeSpan(max_*86400))
         return txt + self._lineTbl(i)
 
+    @staticmethod
+    def filter_by_quantiles(start, end, data):
+        if not data or len(data) < 2:
+            return 0, 0, ""
+
+        data_quantiles = quantiles(data, n=100)
+        filtered_data = [item for item in data if data_quantiles[start] < item < data_quantiles[end]]
+        realmin = min(filtered_data)
+        realmax = max(filtered_data)
+        realdiff = realmax - realmin
+        realspan = realdiff // 18
+
+        print("REALSPAN", realspan)
+        print("REALMAX", realmax)
+        print("REALMIN", realmin)
+
+        data = [round(item / realspan) * realspan for item in data]
+        print(data)
+        c = Counter(data)
+        grouped_data = [x for x in sorted(c.items(), key=lambda x: x[0]) if realmin - realdiff / (end - start) <= x[0] <= realmax + realdiff / (end - start)]
+
+        return realmin, realmax, grouped_data
+
     def _ivls(self):
         if self.type == 0:
-            chunk = 1; lim = " and grp <= 30"
+            lim = " and due - ivl >= " + str(self.col.sched.today - 30)
         elif self.type == 1:
-            chunk = 7; lim = " and grp <= 52"
+            lim = " and due - ivl >= " + str(self.col.sched.today - 365)
         else:
-            chunk = 30; lim = ""
-        data = [self.col.db.all("""
-select round(ivl / :chunk, 0) as grp, count() from cards
+            lim = ""
+        data = [x[0] for x in self.col.db.all("""
+select ivl from cards
 where did in %s and queue = 2 %s
-group by grp
-order by grp""" % (self._limit(), lim), chunk=chunk)]
-        return data + list(self.col.db.first("""
+""" % (self._limit(), lim))]
+        return [data] + list(self.col.db.first("""
 select count(), avg(ivl), max(ivl) from cards where did in %s and queue = 2""" %
                                          self._limit()))
 
@@ -750,7 +770,9 @@ group by hour having count() > 30 order by hour""" % lim,
         div = self._cards()
         d = []
         for c, (t, col) in enumerate((
-            (_("Mature"), colMature),
+            (_("Old (>= 1 year)"), colOld),
+            (_("Mature (>= 3 months)"), colMature),
+            (_("Adolescent (>= 3 weeks)"), colAdolescent),
             (_("Young+Learn"), colYoung),
             (_("Unseen"), colUnseen),
             (_("Suspended+Buried"), colSusp))):
@@ -800,7 +822,9 @@ from cards where did in %s and queue = 2""" % self._limit())
     def _cards(self):
         return self.col.db.first("""
 select
-sum(case when queue=2 and ivl >= 21 then 1 else 0 end), -- mtr
+sum(case when queue=2 and ivl >= 365 then 1 else 0 end), -- mtr
+sum(case when queue=2 and ivl < 365 and ivl >= 90  then 1 else 0 end), -- mtr
+sum(case when queue=2 and ivl < 90 and ivl >= 21 then 1 else 0 end), -- mtr
 sum(case when queue in (1,3) or (queue=2 and ivl < 21) then 1 else 0 end), -- yng/lrn
 sum(case when queue=0 then 1 else 0 end), -- new
 sum(case when queue<0 then 1 else 0 end) -- susp
@@ -868,18 +892,7 @@ from cards where did in %s""" % self._limit())
             ylabel = ""
             conf['series']['pie'] = dict(
                 show=True,
-                radius=1,
-                stroke=dict(color="#fff", width=5),
-                label=dict(
-                    show=True,
-                    radius=0.8,
-                    threshold=0.01,
-                    background=dict(
-                        opacity=0.5,
-                        color="#000"
-                    )))
-
-            #conf['legend'] = dict(show=False)
+                radius=1)
         return (
 """
 <table cellpadding=0 cellspacing=10>
@@ -899,16 +912,18 @@ font-weight: bold;
  -webkit-transform: rotate(90deg) translateY(65px);
 font-weight: bold;
 ">%(ylab2)s</div></td>
-:
+
 </tr></table>
 <script>
 $(function () {
     var conf = %(conf)s;
     conf.legend.container = $("#%(id)sLegend")[0];
-    conf.legend.backgroundColor = "white";
     if (conf.series.pie) {
-        conf.series.pie.label.formatter = function(label, series){
-            return '<div class=pielabel>'+Math.round(series.percent)+'%%</div>';
+        conf.legend.labelFormatter = function(text, entry) {
+            entry['lines'] = {}
+            entry['lines']['show'] = true;
+            entry['lines']['fill'] = true;
+            return text;
         };
     }
     $.plot($("#%(id)s"), %(data)s, conf);

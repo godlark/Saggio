@@ -22,21 +22,23 @@ def factorGraph(self):
 
     data_quantiles = quantiles(data, n=100)
     filtered_data = [item for item in data if data_quantiles[9] < item < data_quantiles[89]]
+
+    if not filtered_data:
+        return ""
+
     realmin = min(filtered_data)
     realmax = max(filtered_data)
     realdiff = realmax - realmin
-    realspan = realdiff // 20
+    realspan = realdiff // 18
 
     data = [round(item / realspan) * realspan for item in data]
     data = [item / 10 for item in data]
 
-    if not data:
-        return ""
     all = len(data)
     c = Counter(data)
-    factors = sorted(c.items(), key=lambda x: x[0])
-    if not factors or not all:
-        return ""
+    factors = [x for x in sorted(c.items(), key=lambda x: x[0]) if
+               (realmin - realspan) / 10 <= x[0] <= (realmax + realspan) / 10]
+
     tot = 0
     totd = []
     (low, avg, high) = self._factors()

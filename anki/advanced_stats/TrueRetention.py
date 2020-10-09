@@ -1,8 +1,3 @@
-import anki.stats
-
-todayStats_old = anki.stats.CollectionStats.todayStats
-
-
 # Types: 0 - new today; 1 - review; 2 - relearn; 3 - (cram?) [before the answer was pressed]
 # "Learning" corresponds to New|Relearn. "Review" corresponds to Young|Mature.
 # Ease: 1 - flunk button; 2 - second; 3 - third; 4 - fourth (easy) [which button was pressed]
@@ -63,10 +58,7 @@ def todayStats_new(self):
 
     pastPeriod = statList(self, lim, (self.col.sched.dayCutoff - 86400 * period) * 1000)
 
-    return todayStats_old(self) + "<br><br><table style='text-align: center'><tr><td style='padding: 5px'>" \
+    return "<br><br><table style='text-align: center'><tr><td style='padding: 5px'>" \
            + "<span>Past day:</span>" + pastDay + "</td><td style='padding: 5px'>" \
            + "<span>Past week:</span>" + pastWeek + "</td><td style='padding: 5px'>" \
            + "<span>" + name + "</span>" + pastPeriod + "</td></tr></table>"
-
-
-anki.stats.CollectionStats.todayStats = todayStats_new

@@ -8,9 +8,9 @@ import json
 from statistics import quantiles
 from collections import Counter
 
-
 from anki.utils import fmtTimeSpan, ids2str
 from anki.lang import _, ngettext
+from anki.advanced_stats.TrueRetention import todayStats_new
 
 
 # Card stats
@@ -218,7 +218,7 @@ from revlog where id > ? """+lim, (self.col.sched.dayCutoff-86400)*1000)
                 b += _("No mature cards were studied today.")
         else:
             b += _("No cards have been studied today.")
-        return b
+        return b + todayStats_new(self)
 
     # Due and cumulative due
     ######################################################################

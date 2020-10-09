@@ -89,5 +89,7 @@ def update_ease_factors():
     #mw.progress.finish()
     mw.reset()
 
-# add hook to 'profileLoaded'
-addHook("profileLoaded", update_ease_factors)
+
+def initialize():
+    # add hook to 'profileLoaded'
+    addHook("profileLoaded", update_ease_factors)

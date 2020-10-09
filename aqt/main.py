@@ -81,7 +81,6 @@ class AnkiQt(QMainWindow):
         self.setupProgress()
         self.setupErrorHandler()
         self.setupSignals()
-        self.setupAutoUpdate()
         self.setupHooks()
         self.setupRefreshTimer()
         self.updateTitleBar()
@@ -912,24 +911,6 @@ QTreeWidget {
 
     def updateTitleBar(self):
         self.setWindowTitle("Anki")
-
-    # Auto update
-    ##########################################################################
-
-    def setupAutoUpdate(self):
-        import aqt.update
-        self.autoUpdate = aqt.update.LatestVersionFinder(self)
-        self.autoUpdate.newVerAvail.connect(self.newVerAvail)
-        self.autoUpdate.newMsg.connect(self.newMsg)
-        self.autoUpdate.clockIsOff.connect(self.clockIsOff)
-        self.autoUpdate.start()
-
-    def newVerAvail(self, ver):
-        if self.pm.meta.get('suppressUpdate', None) != ver:
-            aqt.update.askAndUpdate(self, ver)
-
-    def newMsg(self, data):
-        aqt.update.showMessages(self, data)
 
     def clockIsOff(self, diff):
         diffText = ngettext("%s second", "%s seconds", diff) % diff

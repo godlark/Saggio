@@ -117,6 +117,7 @@ class CollectionStats:
         # 0=days, 1=weeks, 2=months
         self.type = type
         from .statsbg import bg
+        from .advanced_stats.graphs import ProgressGraphs
         txt = self.css % bg
         txt += self._section(self.todayStats())
         txt += self._section(self.dueGraph())
@@ -125,6 +126,7 @@ class CollectionStats:
         txt += self._section(self.ivlGraph())
         txt += self._section(self.hourGraph())
         txt += self._section(self.easeGraph())
+        txt += self._section(ProgressGraphs(self))
         txt += self._section(self.cardGraph())
         txt += self._section(self.footer())
         return "<center>%s</center>" % txt

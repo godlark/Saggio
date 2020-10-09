@@ -50,6 +50,7 @@ class AnkiQt(QMainWindow):
         self.safeMode = self.app.queryKeyboardModifiers() & Qt.ShiftModifier
         try:
             self.setupUI()
+            self.setupEmbeddedAddons()
             self.setupAddons()
         except:
             showInfo(_("Error during startup:\n%s") % traceback.format_exc())
@@ -638,6 +639,10 @@ title="%s" %s>%s</button>''' % (
     def setupErrorHandler(self):
         import aqt.errors
         self.errorHandler = aqt.errors.ErrorHandler(self)
+
+    def setupEmbeddedAddons(self):
+        from anki.embedded_addons import AVG_Ease
+        AVG_Ease.initialize()
 
     def setupAddons(self):
         import aqt.addons

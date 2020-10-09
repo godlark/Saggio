@@ -31,7 +31,6 @@ def find_average_ease_in_deck(deck_id):
         did = ?""", deck_id)
     if not mature_cards or mature_cards[0][0] is None:
         return 0, 0
-    print(mature_cards)
     return mature_cards[0]
 
 

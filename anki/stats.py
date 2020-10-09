@@ -578,12 +578,7 @@ group by day_calculated order by day_calculated)""" % lim,
         realdiff = realmax - realmin
         realspan = realdiff // 18
 
-        print("REALSPAN", realspan)
-        print("REALMAX", realmax)
-        print("REALMIN", realmin)
-
         data = [round(item / realspan) * realspan for item in data]
-        print(data)
         c = Counter(data)
         grouped_data = [x for x in sorted(c.items(), key=lambda x: x[0]) if realmin - realdiff / (end - start) <= x[0] <= realmax + realdiff / (end - start)]
 

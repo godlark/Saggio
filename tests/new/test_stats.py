@@ -20,6 +20,11 @@ def create_learning_card(collection, ivl):
     return card
 
 
+def test_filter_by_quantiles_all_elements_are_the_same():
+    data = CollectionStats.filter_by_quantiles(10, 90, [50, 50, 50])
+    assert data == (50, 50, [(50, 3)])
+
+
 def test_days_studied_works_with_old_logs():
     # ARRANGE
     col = getEmptyCol()

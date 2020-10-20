@@ -545,7 +545,7 @@ group by day_calculated order by day_calculated)""" % lim,
 
     def ivlGraph(self):
         (ivls, all, avg, max_) = self._ivls()
-        ivlmax, ivlmin, ivls = self.filter_by_quantiles(9, 89, ivls)
+        ivlmax, ivlmin, ivls = self.filter_by_quantiles(10, 90, ivls)
 
         tot = 0
         totd = []
@@ -562,9 +562,15 @@ group by day_calculated order by day_calculated)""" % lim,
                 xaxis=dict(min=-0.5, max=ivlmax+0.5),
                 yaxes=[dict(mode="log"), dict(position="right", max=105)]))
         i = []
-        self._line(i, _("Average interval"), fmtTimeSpan(avg*86400))
-        self._line(i, _("Longest interval"), fmtTimeSpan(max_*86400))
+        self._line(i, _("Average interval"), self.time_label(avg))
+        self._line(i, _("Longest interval"), self.time_label(max_))
         return txt + self._lineTbl(i)
+
+    def time_label(self, seconds):
+        if seconds is None:
+            return None
+        else:
+            return fmtTimeSpan(seconds * 86400)
 
     @staticmethod
     def filter_by_quantiles(start, end, data):
@@ -572,10 +578,11 @@ group by day_calculated order by day_calculated)""" % lim,
             return 0, 0, ""
 
         data_quantiles = quantiles(data, n=100)
-        filtered_data = [item for item in data if data_quantiles[start] < item < data_quantiles[end]]
+        filtered_data = [item for item in data if data_quantiles[start] <= item <= data_quantiles[end]]
         realmin = min(filtered_data)
         realmax = max(filtered_data)
-        realdiff = realmax - realmin
+        # We don't want realspan == 0
+        realdiff = max(18, realmax - realmin)
         realspan = realdiff // 18
 
         data = [round(item / realspan) * realspan for item in data]

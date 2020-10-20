@@ -1440,6 +1440,8 @@ where id in %s""" % ids2str(sf))
         nids = self.selectedNotes()
         if not nids:
             return
+        if not askUser(_("Are you sure you want to delete selected notes?")):
+            return
         self.mw.checkpoint(_("Delete Notes"))
         self.model.beginReset()
         # figure out where to place the cursor after the deletion

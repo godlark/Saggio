@@ -240,34 +240,39 @@ order by due""" % self._deckLimit(),
         decks.sort(key=itemgetter('name'))
         lims = {}
         data = []
-        def parent(name):
-            parts = name.split("::")
-            if len(parts) < 2:
-                return None
-            parts = parts[:-1]
-            return "::".join(parts)
         childMap = self.col.decks.childMap()
+        new_for_decks = self._newForDecks()
+        learn_for_decks = self._lrnForDecks()
+        rev_for_decks = self._revForDecks()
         for deck in decks:
-            p = parent(deck['name'])
-            # new
-            nlim = self._deckNewLimitSingle(deck)
-            if p:
-                nlim = min(nlim, lims[p][0])
-            new = self._newForDeck(deck['id'], nlim)
+            nlim, new = self._get_number_of_new_cards(new_for_decks, deck)
             # learning
-            lrn = self._lrnForDeck(deck['id'])
+            lrn = self._get_number_of_learning_cards(learn_for_decks, deck)
             # reviews
-            if p:
-                plim = lims[p][1]
-            else:
-                plim = None
-            rlim = self._deckRevLimitSingle(deck, parentLimit=plim)
-            rev = self._revForDeck(deck['id'], rlim, childMap)
+            rlim, rev = self._get_number_of_revision_cards(rev_for_decks, deck, childMap)
             # save to list
             data.append([deck['name'], deck['id'], rev, lrn, new])
             # add deck as a parent
             lims[deck['name']] = [nlim, rlim]
         return data
+
+    def _get_number_of_new_cards(self, new_for_decks, deck):
+        new_cards_limit = self._deckNewLimitSingle(deck)
+        if not new_cards_limit:
+            return 0, 0
+        new_cards_limit = min(self.reportLimit, new_cards_limit)
+        return new_cards_limit, min(new_cards_limit, new_for_decks.get(deck['id'], 0))
+
+    def _get_number_of_learning_cards(self, learning_for_decks, deck):
+        learning = learning_for_decks[0].get(deck['id'], 0) + learning_for_decks[1].get(deck['id'], 0)
+        return min(learning, self.reportLimit)
+
+    def _get_number_of_revision_cards(self, revision_for_decks, deck, childMap):
+        revision_card_limit = min(self._deckRevLimitSingle(deck, parentLimit=None), self.reportLimit)
+        revision_cards = 0
+        for child_did in [deck['id']] + self.col.decks.childDids(deck['id'], childMap):
+            revision_cards += revision_for_decks.get(child_did, 0)
+        return revision_card_limit, min(revision_cards, revision_card_limit)
 
     def deckDueTree(self):
         return self._groupChildren(self.deckDueList())
@@ -426,14 +431,9 @@ did = ? and queue = 0 limit ?)""", did, lim)
                 lim = min(rem, lim)
         return lim
 
-    def _newForDeck(self, did, lim):
-        "New count for a single deck."
-        if not lim:
-            return 0
-        lim = min(lim, self.reportLimit)
-        return self.col.db.scalar("""
-select count() from
-(select 1 from cards where did = ? and queue = 0 limit ?)""", did, lim)
+    def _newForDecks(self):
+        return {did: count for did, count in self.col.db.execute("""
+        select count(), did from cards group by did""")}
 
     def _deckNewLimitSingle(self, g):
         "Limit for deck without parent limits."
@@ -747,18 +747,14 @@ did = ? and queue = 3 and due <= ? limit ?""",
             time.sleep(0.01)
             log()
 
-    def _lrnForDeck(self, did):
-        cnt = self.col.db.scalar(
-            """
-select count() from
-(select null from cards where did = ? and queue = 1 and due < ? limit ?)""",
-            did, intTime() + self.col.conf['collapseTime'], self.reportLimit) or 0
-        return cnt + self.col.db.scalar(
-            """
-select count() from
-(select null from cards where did = ? and queue = 3
-and due <= ? limit ?)""",
-            did, self.today, self.reportLimit)
+    def _lrnForDecks(self):
+        cnts = {did: count for did, count in self.col.db.execute("""
+        select did, count() from cards where queue = 1 and due < ? group by did
+        """, intTime() + self.col.conf['collapseTime'])}
+        rest = {did: count for did, count in self.col.db.execute("""
+        select did, count() from cards where queue = 3 and due <= ? group by did""",
+            self.today)}
+        return cnts, rest
 
     # Reviews
     ##########################################################################
@@ -773,15 +769,9 @@ and due <= ? limit ?)""",
         c = self.col.decks.confForDid(deck['id'])
         return max(0, c['rev']['perDay'] - deck['revToday'][1])
 
-    def _revForDeck(self, did, lim, childMap):
-        dids = [did] + self.col.decks.childDids(did, childMap)
-        lim = min(lim, self.reportLimit)
-        return self.col.db.scalar(
-            """
-select count() from
-(select 1 from cards where did in %s and queue = 2
-and due <= ? limit ?)""" % ids2str(dids),
-            self.today, lim)
+    def _revForDecks(self):
+        return {did: count for did, count in self.col.db.execute("""
+        select did, count() from cards where queue = 2 and due <= ? group by did""", self.today)}
 
     def _resetRevCount(self):
         lim = self._currentRevLimit()

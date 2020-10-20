@@ -23,3 +23,13 @@ Dodanie opcji do limitu learning/new
 Usunięcie card.queue = 3 (learning in days)
 Dodanie card.queue = 5 (revision in seconds)
 Revlog to powinien być plik txt z dowolną strukturą?
+
+Testing:
+Run command
+$ py.test 
+
+Profiling:
+Run commands:
+$ python -m cProfile -o prof.out runanki
+$ gprof2dot -f pstats prof2.out -o callingGraph2.dot
+$ dot callingGraph2.dot | display

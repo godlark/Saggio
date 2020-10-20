@@ -1,3 +1,5 @@
+from anki.lang import _
+
 # Types: 0 - new today; 1 - review; 2 - relearn; 3 - (cram?) [before the answer was pressed]
 # "Learning" corresponds to New|Relearn. "Review" corresponds to Young|Mature.
 # Ease: 1 - flunk button; 2 - second; 3 - third; 4 - fourth (easy) [which button was pressed]

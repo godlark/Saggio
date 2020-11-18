@@ -244,8 +244,8 @@ from revlog where id > ? """+lim, (self.col.sched.dayCutoff-86400)*1000)
             tot += day[1]+day[2]
             totd.append((day[0], tot))
         data = [
-            dict(data=mtr, color=colMature, label=_("Mature"), bars={"show": True}),
-            dict(data=yng, color=colYoung, label=_("Young"), bars={"show": True}),
+            dict(data=mtr, color=colMature, label=_("Mature"), bars={"show": True, "fill": 1}),
+            dict(data=yng, color=colYoung, label=_("Young"), bars={"show": True, "fill": 1}),
         ]
         if len(totd) > 1:
             data.append(
@@ -352,14 +352,40 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
         if not data:
             return ""
         d = data
+
+        days_column, *series = list(zip(*d))
+        new_data = [list(zip(days_column, serie)) for serie in series]
+        new_data_response = new_data[0:5]
+        new_data_response_sum = new_data[5:]
+
+        new_data_response = zip(new_data_response, [
+            (1, colLearn, _("Learn")),
+            (2, colYoung, _("Young")),
+            (3, colMature, _("Mature")),
+            (4, colRelearn, _("Relearn")),
+            (5, colCram, _("Cram"))])
+
+        new_data_response = [
+            {"data": data, "color": stylish[1], "bars":{"show": True, "fill": 1}, "label": stylish[2]} for data, stylish in new_data_response
+        ]
+
         conf = dict(
             xaxis=dict(tickDecimals=0, max=0.5),
             yaxes=[dict(min=0), dict(position="right", min=0)])
+
+        conf1 = dict(
+            xaxis=dict(tickDecimals=0, max=0.5),
+            yaxes=[dict(min=0), dict(position="right", min=0)],
+            #series={"bars": {"show": True}, "stack": 0}
+        )
+
         if days is not None:
             conf['xaxis']['min'] = -days+0.5
+
         def plot(id, data, ylabel, ylabel2):
             return self._graph(
                 id, data=data, conf=conf, ylabel=ylabel, ylabel2=ylabel2)
+
         # reps
         (repdata, repsum) = self._splitRepData(d, (
             (3, colMature, _("Mature")),
@@ -367,10 +393,11 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
             (4, colRelearn, _("Relearn")),
             (1, colLearn, _("Learn")),
             (5, colCram, _("Cram"))))
+
         txt1 = self._title(
             reptitle, _("The number of questions you have answered."))
-        txt1 += plot("reps", repdata, ylabel=_("Answers"), ylabel2=_(
-            "Cumulative Answers"))
+        txt1 += self._graph("reps", data=new_data_response, conf=conf1, ylabel=_("Answers"), ylabel2=_("Cumulative Answers"))
+        print(self._graph("reps", data=new_data_response, conf=conf1, ylabel=_("Answers"), ylabel2=_("Cumulative Answers")))
         (daysStud, fstDay) = self._daysStudied()
         rep, tot = self._ansInfo(repsum, daysStud, fstDay, _("reviews"))
         txt1 += rep
@@ -458,7 +485,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
         for (n, col, lab) in spec:
             if len(totd[n]) and totcnt[n]:
                 # bars
-                ret.append(dict(data=sep[n], color=col, label=lab, bars={"show": True}))
+                ret.append(dict(data=sep[n], color=col, label=lab, bars={"show": True, "fill": 1}))
                 # lines
                 ret.append(dict(
                     data=totd[n], color=col, label=None, yaxis=2,
@@ -558,7 +585,7 @@ group by day_calculated order by day_calculated)""" % lim,
         txt = self._title(_("Intervals"),
                           _("Delays until reviews are shown again in days. Statistics are based on cards reviewed recently."))
         txt += self._graph(id="ivl", ylabel2=_("Percentage"), data=[
-            dict(data=ivls, color=colIvl, bars={"show": True}),
+            dict(data=ivls, color=colIvl, bars={"show": True, "fill": 1}),
             dict(data=totd, color=colCum, yaxis=2,
              bars={'show': False}, lines=dict(show=True), stack=False)
             ], conf=dict(
@@ -634,9 +661,9 @@ select count(), avg(ivl), max(ivl) from cards where did in %s and queue = 2""" %
         txt = self._title(_("Answer Buttons"),
                           _("The number of times you have pressed each button."))
         txt += self._graph(id="ease", data=[
-            dict(data=d['lrn'], color=colLearn, bars={"show": True}, label=_("Learning")),
-            dict(data=d['yng'], color=colYoung, bars={"show": True}, label=_("Young")),
-            dict(data=d['mtr'], color=colMature, bars={"show": True}, label=_("Mature")),
+            dict(data=d['lrn'], color=colLearn, bars={"show": True, "fill": 1}, label=_("Learning")),
+            dict(data=d['yng'], color=colYoung, bars={"show": True, "fill": 1}, label=_("Young")),
+            dict(data=d['mtr'], color=colMature, bars={"show": True, "fill": 1}, label=_("Mature")),
             ], type="bars", conf=dict(
                 xaxis=dict(ticks=ticks, min=0, max=15)),
             ylabel=_("Answers"))
@@ -736,9 +763,9 @@ order by thetype, ease""" % (ease4repl, lim))
         txt = self._title(_("Hourly Breakdown"),
                           _("Review success rate for each hour of the day."))
         txt += self._graph(id="hour", data=[
-            dict(data=shifted, color=colCum, label=_("% Correct"), bars=dict(show=True)),
+            dict(data=shifted, color=colCum, label=_("% Correct"), bars=dict(show=True, fill=1)),
             dict(data=counts, color=colHour, label=_("Answers"), yaxis=2,
-             bars=dict(barWidth=0.2, show=True), stack=False)
+             bars=dict(barWidth=0.2, show=True, fill=1), stack=False)
         ], conf=dict(
             xaxis=dict(ticks=[[0, _("4AM")], [6, _("10AM")],
                            [12, _("4PM")], [18, _("10PM")], [23, _("3AM")]]),
@@ -869,7 +896,8 @@ from cards where did in %s""" % self._limit())
             conf['legend'] = {'noColumns':2, 'show': True}
         else:
             conf['legend'] = {'noColumns':10, 'show': True}
-        conf['series'] = dict(stack=True)
+        if 'series' not in conf:
+            conf['series'] = dict(stack=True)
 
         if not 'yaxis' in conf and not 'yaxes' in conf:
             conf['yaxis'] = {}

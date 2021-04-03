@@ -55,6 +55,7 @@ class Card:
             self.odid = 0
             self.flags = 0
             self.data = ""
+            self.review_start_time = None
 
     def load(self):
         (self.id,
@@ -74,7 +75,8 @@ class Card:
          self.odue,
          self.odid,
          self.flags,
-         self.data) = self.col.db.first(
+         self.data,
+         self.review_start_time) = self.col.db.first(
              "select * from cards where id = ?", self.id)
         self._qa = None
         self._note = None
@@ -92,7 +94,7 @@ class Card:
             self.col.db.execute(
                 """
     insert into cards values
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 self.id,
                 self.nid,
                 self.did,
@@ -110,15 +112,17 @@ class Card:
                 self.odue,
                 self.odid,
                 self.flags,
-                self.data)
+                self.data,
+                self.review_start_time
+            )
         else:
             self.col.db.execute(
                 """update cards set
     nid=?, did=?, ord=?, mod=?, usn=?, type=?, queue=?, due=?, ivl=?, factor=?, reps=?,
-    lapses=?, left=?, odue=?, odid=?, flags=?, data=? where id = ?""",
+    lapses=?, left=?, odue=?, odid=?, flags=?, data=?, review_start_time=? where id = ?""",
                 self.nid, self.did, self.ord, self.mod, self.usn, self.type, self.queue, self.due, self.ivl,
                 self.factor, self.reps, self.lapses,
-                self.left, self.odue, self.odid, self.flags, self.data, self.id)
+                self.left, self.odue, self.odid, self.flags, self.data, self.review_start_time, self.id)
         self.col.log(self)
 
     def flushSched(self):
@@ -131,10 +135,10 @@ class Card:
         self.col.db.execute(
             """update cards set
 mod=?, usn=?, type=?, queue=?, due=?, ivl=?, factor=?, reps=?,
-lapses=?, left=?, odue=?, odid=?, did=? where id = ?""",
+lapses=?, left=?, odue=?, odid=?, did=?, review_start_time=? where id = ?""",
             self.mod, self.usn, self.type, self.queue, self.due, self.ivl,
             self.factor, self.reps, self.lapses,
-            self.left, self.odue, self.odid, self.did, self.id)
+            self.left, self.odue, self.odid, self.did, self.review_start_time, self.id)
         self.col.log(self)
 
     def q(self, reload=False, browser=False):

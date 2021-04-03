@@ -23,6 +23,10 @@ Dodanie opcji do limitu learning/new
 Usunięcie card.queue = 3 (learning in days)
 Dodanie card.queue = 5 (revision in seconds)
 Revlog to powinien być plik txt z dowolną strukturą?
+* Powinny być tylko dwa rodzaje decków: parent decki, i decki z kartami; parent decki nie powinny zawierać kart
+* Powinny być grupy ustawień oraz ustawienia specyficzne dla danego decka, np. liczba nowych kart, limit powtórzeń;
+albo można zrobić override-y dla decków
+* Niektóre ustawienia mogą być per rodzaj karty (czyli note.template_id + card.ord)
 
 Testing:
 Run command
@@ -33,3 +37,6 @@ Run commands:
 $ python -m cProfile -o prof.out runanki
 $ gprof2dot -f pstats prof2.out -o callingGraph2.dot
 $ dot callingGraph2.dot | display
+
+## Commits with missing tests
+* a3f14d53b60ed3e65a9afc574d8277e87177c9de - Add a `review_start_time`

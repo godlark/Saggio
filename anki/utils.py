@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright: Ankitects Pty Ltd and contributors
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
-
+import datetime
 import re
 import os
 import random
@@ -91,6 +91,14 @@ def optimalPeriod(time, point, unit):
         type = "years"
         point += 1
     return (type, max(point, 0))
+
+
+def is_the_same_day(first, second, rollover):
+    first_adjusted = first - datetime.timedelta(hours=rollover)
+    second_adjusted = second - datetime.timedelta(hours=rollover)
+
+    return (first_adjusted - second_adjusted).days == 0
+
 
 def convertSecondsTo(seconds, type):
     if type == "seconds":

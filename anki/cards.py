@@ -19,6 +19,16 @@ from anki.consts import *
 # - rev queue: integer day
 # - lrn queue: integer timestamp
 
+NEW_QUEUE = 0
+LEARNING_QUEUE = 1
+DUE_QUEUE = 2
+LEARN_DAY_QUEUE = 3
+
+NEW_CARD = 0
+LEARNING_CARD = 1
+DUE_CARD = 2
+RELEARNING_CARD = 3
+
 
 class Card:
 

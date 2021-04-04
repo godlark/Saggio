@@ -8,8 +8,10 @@ from operator import itemgetter
 from heapq import *
 import datetime
 
+from anki.cards import LEARNING_QUEUE, DUE_QUEUE, LEARN_DAY_QUEUE, NEW_QUEUE, NEW_CARD, DUE_CARD, RELEARNING_CARD, \
+    LEARNING_CARD
 from anki.schedulers import register_scheduler
-from anki.utils import ids2str, intTime, fmtTimeSpan
+from anki.utils import ids2str, intTime, fmtTimeSpan, is_the_same_day
 from anki.lang import _
 from anki.consts import *
 from anki.hooks import runHook
@@ -105,18 +107,18 @@ class Scheduler:
 
         card.reps += 1
 
-        if card.queue == 0:
+        if card.queue == NEW_QUEUE:
             # came from the new queue, move to learning
-            card.queue = 1
-            card.type = 1
+            card.queue = LEARNING_QUEUE
+            card.type = LEARNING_CARD
             # init reps to graduation
             card.left = self._startingLeft(card)
             # update daily limit
             self._updateStats(card, 'new')
 
-        if card.queue in (1, 3):
+        if card.queue in (LEARNING_QUEUE, LEARN_DAY_QUEUE):
             self._answerLrnCard(card, ease)
-        elif card.queue == 2:
+        elif card.queue == DUE_QUEUE:
             self._answerRevCard(card, ease)
             # update daily limit
             self._updateStats(card, 'rev')
@@ -548,10 +550,10 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
     def _answerLrnCard(self, card, ease):
         conf = self._lrnConf(card)
-        if card.type in (2,3):
-            type = 2
+        if card.type in (DUE_CARD, RELEARNING_CARD):
+            type = DUE_CARD
         else:
-            type = 0
+            type = NEW_CARD
         # lrnCount was decremented once when card was fetched
         lastLeft = card.left
 
@@ -559,8 +561,8 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
         # immediate graduate?
         if ease == 4:
-            if card.type in [0, 1]:
-                # TODO: Is it possible that card has type == 0
+            if card.type in [NEW_CARD, LEARNING_CARD]:
+                # TODO: Is it possible that card has type == 0; when it's equal to 0, we set it to `1`
                 self.newCount += 1
             self._rescheduleAsRev(card, conf, True)
             leaving = True
@@ -579,13 +581,39 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
         self._logLrn(card, ease, conf, leaving, type, lastLeft)
 
+    def _get_rollover(self):
+        return self.col.conf.get("rollover", 4)
+
+    def _reset_card(self, card):
+        # This is a penalty for resetting card; it's expected to that relearning cards are penalized two times
+        card.lapses += 1
+        if card.type in [NEW_CARD, LEARNING_CARD]:
+            card.type = NEW_CARD
+            card.queue = NEW_QUEUE
+            card.left = 0
+            card.review_start_time = None
+        elif card.type == RELEARNING_CARD:
+            self._rescheduleAsRev(card, self._lapseConf(card), early=False)
+
     def _moveToPrevStep(self, card, conf):
         # increment real left count and recalculate left today
         # TODO: Add two tests: for max
-        left = min(len(conf['delays']), (card.left % 1000) + 1)
-        card.left = self._leftToday(conf['delays'], left) * 1000 + left
 
-        self._rescheduleLrnCard(card, conf)
+        if not card.review_start_time:
+            card.review_start_time = 0
+
+        last_answer_time = datetime.datetime.fromtimestamp(card.review_start_time)
+        now_time = datetime.datetime.now()
+
+        if not is_the_same_day(last_answer_time, now_time, self._get_rollover()):
+            # An user started learning the card a few days ago and failed to answer correctly, so to
+            # remove burden for the user, the card should be removed from the queue
+            self._reset_card(card)
+        else:
+            left = min(len(conf['delays']), (card.left % 1000) + 1)
+            card.left = self._leftToday(conf['delays'], left) * 1000 + left
+
+            self._rescheduleLrnCard(card, conf)
 
     def _moveToFirstStep(self, card, conf):
         card.left = self._startingLeft(card)
@@ -607,6 +635,8 @@ did = ? and queue = 3 and due <= ? limit ?""",
         if delay is None:
             delay = self._delayForGrade(conf, card.left)
 
+        card.review_start_time = intTime()
+
         self._set_due(card, time.time() + delay)
         # due today?
         if card.due < self.dayCutoff:
@@ -614,7 +644,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
             maxExtra = min(300, int(delay*0.25))
             fuzz = random.randrange(0, maxExtra)
             self._set_due(card, min(self.dayCutoff-1, card.due + fuzz))
-            card.queue = 1
+            card.queue = LEARNING_QUEUE
             if card.due < (intTime() + self.col.conf['collapseTime']):
                 self.lrnCount += 1
                 # if the queue is not empty and there's nothing else to do, make
@@ -629,7 +659,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
             # day learn queue
             ahead = ((card.due - self.dayCutoff) // 86400) + 1
             self._set_due(card, self.today + ahead)
-            card.queue = 3
+            card.queue = LEARN_DAY_QUEUE
 
     def _delayForGrade(self, conf, left):
         left = left % 1000
@@ -654,13 +684,14 @@ did = ? and queue = 3 and due <= ? limit ?""",
         return avg
 
     def _lrnConf(self, card):
-        if card.type in (2, 3):
+        if card.type in (DUE_CARD, RELEARNING_CARD):
             return self._lapseConf(card)
         else:
             return self._newConf(card)
 
     def _rescheduleAsRev(self, card, conf, early):
-        lapse = card.type in (2,3)
+        lapse = card.type in (DUE_CARD, RELEARNING_CARD)
+        card.review_start_time = None
 
         if lapse:
             self._rescheduleGraduatingLapse(card)
@@ -673,11 +704,11 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
     def _rescheduleGraduatingLapse(self, card):
         self._set_due(card, self.today + card.ivl)
-        card.queue = 2
-        card.type = 2
+        card.queue = DUE_QUEUE
+        card.type = DUE_CARD
 
     def _startingLeft(self, card):
-        if card.type == 2:
+        if card.type == DUE_CARD:
             conf = self._lapseConf(card)
         else:
             conf = self._lrnConf(card)
@@ -699,7 +730,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
         return ok+1
 
     def _graduatingIvl(self, card, conf, early, fuzz=True):
-        if card.type in (2,3):
+        if card.type in (DUE_CARD, RELEARNING_CARD):
             return card.ivl
         if not early:
             # graduate
@@ -730,7 +761,8 @@ did = ? and queue = 3 and due <= ? limit ?""",
         card.factor = max(card.factor, 1300)
         card.ivl = self._graduatingIvl(card, conf, early)
         self._set_due(card, self.today + card.ivl)
-        card.type = card.queue = 2
+        card.type = DUE_CARD
+        card.queue = DUE_QUEUE
 
     def _logLrn(self, card, ease, conf, leaving, type, lastLeft):
         lastIvl = -(self._delayForGrade(conf, lastLeft))
@@ -1089,7 +1121,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         card.ivl = self._get_next_ivl(card, card.ivl, card.factor, card.lastFactor, ease)
 
         if conf['delays'] and not suspended:
-            card.type = 3
+            card.type = RELEARNING_CARD
             self._moveToFirstStep(card, conf)
         else:
             # no relearning steps
@@ -1179,7 +1211,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
     # next interval for card when answered early+correctly
     def _earlyReviewIvl(self, card, ease):
-        assert card.odid and card.type == 2
+        assert card.odid and card.type == DUE_CARD
         assert card.factor
         assert ease > 1
 
@@ -1323,11 +1355,11 @@ where id = ?
 
         # learning and relearning cards may be seconds-based or day-based;
         # other types map directly to queues
-        if card.type in (1, 3):
+        if card.type in (LEARNING_CARD, RELEARNING_CARD):
             if card.odue > 1000000000:
-                card.queue = 1
+                card.queue = LEARNING_QUEUE
             else:
-                card.queue = 3
+                card.queue = LEARN_DAY_QUEUE
         else:
             card.queue = card.type
 
@@ -1447,7 +1479,7 @@ where id = ?
             self.reset()
 
     def _dayCutoff(self):
-        rolloverTime = self.col.conf.get("rollover", 4)
+        rolloverTime = self._get_rollover()
         if rolloverTime < 0:
             rolloverTime = 24+rolloverTime
         date = datetime.datetime.today()
@@ -1548,7 +1580,7 @@ To study outside of the normal schedule, click the Custom Study button below."""
             return 0
 
         # (re)learning?
-        if card.queue in (0,1,3):
+        if card.queue in (NEW_QUEUE,LEARNING_QUEUE,LEARN_DAY_QUEUE):
             return self._nextLrnIvl(card, ease)
         elif ease == 1:
             # lapse
@@ -1566,7 +1598,7 @@ To study outside of the normal schedule, click the Custom Study button below."""
 
     # this isn't easily extracted from the learn code
     def _nextLrnIvl(self, card, ease):
-        if card.queue == 0:
+        if card.queue == NEW_QUEUE:
             card.left = self._startingLeft(card)
         conf = self._lrnConf(card)
         if ease == 1:

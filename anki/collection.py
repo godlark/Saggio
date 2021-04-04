@@ -35,7 +35,7 @@ import anki.find
 defaultConf = {
     # review options
     'activeDecks': [1],
-    'rollover': 0,
+    'rollover': 4,
     'curDeck': 1,
     'newSpread': NEW_CARDS_DISTRIBUTE,
     'collapseTime': 1200,

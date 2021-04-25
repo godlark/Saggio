@@ -56,3 +56,4 @@ $ dot callingGraph2.dot | display
 ## Commits with missing tests
 * a3f14d53b60ed3e65a9afc574d8277e87177c9de - Add a `review_start_time`
 * 4eaa877bfec959afe3af645df9250af872e76a45 - clear backlog of cards from the previous days
+* bc344f68e95ced9c9a9a5e5e4c05dc41d73f9063 "Fix a bug - new column was added in the previous commits"

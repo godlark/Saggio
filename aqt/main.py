@@ -25,6 +25,7 @@ import aqt.stats
 import aqt.mediasrv
 import anki.sound
 import anki.mpv
+from aqt.stats2 import Stats2Window
 from aqt.utils import saveGeom, restoreGeom, showInfo, showWarning, \
     restoreState, getOnlyText, askUser, showText, tooltip, \
     openHelp, openLink, checkInvalidFilename, getFile
@@ -837,6 +838,13 @@ QTreeWidget {
         if not deck:
             return
         aqt.dialogs.open("DeckStats", self)
+
+    def onStats2(self):
+        deck = self._selectedDeck()
+        if not deck:
+            return
+        dialog = Stats2Window(self, self.col, deck)
+        dialog.show()
 
     def onPrefs(self):
         aqt.dialogs.open("Preferences", self)

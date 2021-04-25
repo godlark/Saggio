@@ -293,6 +293,25 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
                             today=self.col.sched.today,
                             chunk=chunk)
 
+    def due(self, start=None, end=None, chunk=1):
+        lim = ""
+        if start is not None:
+            lim += " and due-:today >= %d" % start
+        if end is not None:
+            lim += " and day_calculated < %d" % end
+        return self.col.db.all("""
+select round((due-:today)/:chunk,0) as day_calculated,
+sum(case when ivl < 21 then 1 else 0 end), -- young
+sum(case when ivl >= 21 and ivl < 90 then 1 else 0 end), -- adolescent
+sum(case when ivl >= 90 and ivl < 365 then 1 else 0 end), -- mature
+sum(case when ivl >= 365 then 1 else 0 end) -- old
+from cards
+where did in %s and queue in (2,3)
+%s
+group by day_calculated order by day_calculated""" % (self._limit(), lim),
+                               today=self.col.sched.today,
+                               chunk=chunk)
+
     # Added, reps and time spent
     ######################################################################
 
@@ -363,7 +382,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
             (2, colYoung, _("Young")),
             (3, colMature, _("Mature")),
             (4, colRelearn, _("Relearn")),
-            (5, colCram, _("Cram"))])
+            (5, colCram, _("Early"))])
 
         new_data_response = [
             {"data": data, "color": stylish[1], "bars":{"show": True, "fill": 1}, "label": stylish[2]} for data, stylish in new_data_response
@@ -392,7 +411,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
             (2, colYoung, _("Young")),
             (4, colRelearn, _("Relearn")),
             (1, colLearn, _("Learn")),
-            (5, colCram, _("Cram"))))
+            (5, colCram, _("Early"))))
 
         txt1 = self._title(
             reptitle, _("The number of questions you have answered."))
@@ -407,7 +426,7 @@ group by day_calculated order by day_calculated""" % (self._limit(), lim),
             (7, colYoung, _("Young")),
             (9, colRelearn, _("Relearn")),
             (6, colLearn, _("Learn")),
-            (10, colCram, _("Cram"))))
+            (10, colCram, _("Early"))))
         if self.type == 0:
             t = _("Minutes")
             convHours = False
@@ -536,13 +555,13 @@ sum(case when type = 0 then 1 else 0 end), -- lrn count
 sum(case when type = 1 and lastIvl < 21 then 1 else 0 end), -- yng count
 sum(case when type = 1 and lastIvl >= 21 then 1 else 0 end), -- mtr count
 sum(case when type = 2 then 1 else 0 end), -- lapse count
-sum(case when type = 3 then 1 else 0 end), -- cram count
+sum(case when type = 3 then 1 else 0 end), -- early count
 sum(case when type = 0 then time/1000.0 else 0 end)/:tf, -- lrn time
 -- yng + mtr time
 sum(case when type = 1 and lastIvl < 21 then time/1000.0 else 0 end)/:tf,
 sum(case when type = 1 and lastIvl >= 21 then time/1000.0 else 0 end)/:tf,
 sum(case when type = 2 then time/1000.0 else 0 end)/:tf, -- lapse time
-sum(case when type = 3 then time/1000.0 else 0 end)/:tf -- cram time
+sum(case when type = 3 then time/1000.0 else 0 end)/:tf -- early time
 from revlog %s
 group by day_calculated order by day_calculated""" % lim,
                             cut=self.col.sched.dayCutoff,
@@ -1015,3 +1034,24 @@ $(function () {
             return ", ".join(vals)
         except ZeroDivisionError:
             return ""
+
+    def revision_count_stats(self):
+        lims = ["id > %d" % ((self.col.sched.dayCutoff - (31 * 86400)) * 1000)]
+        lim = self._revlogLimit()
+        if lim:
+            lims.append(lim)
+        if lims:
+            lim = "where " + " and ".join(lims)
+
+        return self.col.db.all("""
+        select
+        (cast((id/1000.0 - :cut) / 86400.0 as int))/:chunk as day_calculated,
+        sum(case when type = 0 then 1 else 0 end), -- lrn count
+        sum(case when type = 1 and lastIvl < 21 then 1 else 0 end), -- yng count
+        sum(case when type = 1 and lastIvl >= 21 then 1 else 0 end), -- mtr count
+        sum(case when type = 2 then 1 else 0 end), -- lapse count
+        sum(case when type = 3 then 1 else 0 end) -- early count
+        from revlog %s
+        group by day_calculated order by day_calculated""" % lim,
+                               cut=self.col.sched.dayCutoff,
+                               chunk=1)

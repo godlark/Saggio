@@ -28,6 +28,21 @@ Revlog to powinien być plik txt z dowolną strukturą?
 albo można zrobić override-y dla decków
 * Niektóre ustawienia mogą być per rodzaj karty (czyli note.template_id + card.ord)
 
+
+* Regularne testowanie rozszerzeń
+* Przepisanie statystyk na QtChart
+* Refaktor migracji bazy danych do osobnych plików
+* Użycie data klas tam, gdzie można
+* Użycie jakiegoś frameworka do zarządzania bazą danych
+    * https://stackoverflow.com/questions/53376099/python-dataclass-from-a-nested-dict
+    * maybe Peewee https://stackoverflow.com/questions/33901178/translating-sql-sub-query-to-peewee-orm
+* Automatyzacja migracji bazy danych
+* Do logów dodać informację, czy to jest powtórka czy (re)learning oraz czy wynik odpowiedź była zgodna 
+z przewidywaniami z algorytmu
+* Zmiana liczenia lapses:
+  * lapses_total
+  * lapses_in_row
+
 Testing:
 Run command
 $ py.test 
@@ -40,3 +55,4 @@ $ dot callingGraph2.dot | display
 
 ## Commits with missing tests
 * a3f14d53b60ed3e65a9afc574d8277e87177c9de - Add a `review_start_time`
+* 4eaa877bfec959afe3af645df9250af872e76a45 - clear backlog of cards from the previous days

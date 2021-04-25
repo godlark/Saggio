@@ -987,7 +987,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
 
     def _answerRevCard(self, card, ease):
         early = card.odid and (card.odue > self.today)
-        type = early and 3 or 1
+        revision_type = 3 if early else 1
 
         due = self._getDue(card)
         card.lastFactor = card.factor
@@ -1003,7 +1003,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         else:
             self._rescheduleRev(card, ease, early)
 
-        self.logRev(self.col, card, ease, delay, type, due)
+        self.logRev(self.col, card, ease, delay, revision_type, due)
 
     def _get_new_ivl_and_factor(self, card, ease):
         last_factor = card.factor

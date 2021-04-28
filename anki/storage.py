@@ -8,6 +8,10 @@ import json
 import os
 
 from anki.lang import _
+from anki.storage_migrations.rev12 import upgrade_to_rev12
+from anki.storage_migrations.rev13 import upgrade_to_rev13
+from anki.storage_migrations.rev14 import upgrade_to_rev14
+from anki.storage_migrations.rev15 import upgrade_to_rev15
 from anki.utils import intTime, isWin
 from anki.db import DB
 from anki.collection import _Collection
@@ -184,212 +188,13 @@ update cards set left = left + left*1000 where queue = 1""")
             col.models.save(m)
         col.db.execute("update col set ver = 11")
     if ver < 12:
-        try:
-            col.db.execute('select ivl_dec from cards limit 1')
-            col.db.executescript("""
-PRAGMA foreign_keys=off;
-            
-BEGIN TRANSACTION;
-
-ALTER TABLE cards RENAME TO _cards_old;
-
-create table if not exists cards (
-    id              integer primary key,   /* 0 */
-    nid             integer not null,      /* 1 */
-    did             integer not null,      /* 2 */
-    ord             integer not null,      /* 3 */
-    mod             integer not null,      /* 4 */
-    usn             integer not null,      /* 5 */
-    type            integer not null,      /* 6 */
-    queue           integer not null,      /* 7 */
-    due             integer not null,      /* 8 */
-    ivl             decimal not null,      /* 9 */
-    factor          integer not null,      /* 10 */
-    reps            integer not null,      /* 11 */
-    lapses          integer not null,      /* 12 */
-    left            integer not null,      /* 13 */
-    odue            integer not null,      /* 14 */
-    odid            integer not null,      /* 15 */
-    flags           integer not null,      /* 16 */
-    data            text not null          /* 17 */
-);
-
-INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data)
-SELECT id, nid, did, ord, mod, usn, type, queue, due, ivl_dec, factor, reps, lapses, left, odue, odid, flags, data
-FROM _cards_old;
-
-COMMIT;
-
-PRAGMA foreign_keys=on;
-            """)
-            col.db.execute('DROP TABLE IF EXISTS _cards_old')
-        except:
-            col.db.executescript("""
-PRAGMA foreign_keys=off;
-
-BEGIN TRANSACTION;
-
-ALTER TABLE cards RENAME TO _cards_old;
-
-create table if not exists cards (
-    id              integer primary key,   /* 0 */
-    nid             integer not null,      /* 1 */
-    did             integer not null,      /* 2 */
-    ord             integer not null,      /* 3 */
-    mod             integer not null,      /* 4 */
-    usn             integer not null,      /* 5 */
-    type            integer not null,      /* 6 */
-    queue           integer not null,      /* 7 */
-    due             integer not null,      /* 8 */
-    ivl             decimal not null,      /* 9 */
-    factor          integer not null,      /* 10 */
-    reps            integer not null,      /* 11 */
-    lapses          integer not null,      /* 12 */
-    left            integer not null,      /* 13 */
-    odue            integer not null,      /* 14 */
-    odid            integer not null,      /* 15 */
-    flags           integer not null,      /* 16 */
-    data            text not null          /* 17 */
-);
-
-INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data)
-SELECT id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data
-FROM _cards_old;
-
-COMMIT;
-
-PRAGMA foreign_keys=on;
-                        """)
-            col.db.execute('DROP TABLE IF EXISTS _cards_old')
-        finally:
-            col.db.execute("update col set ver = 12")
+        upgrade_to_rev12(col)
     if ver < 13:
-        try:
-            col.load()
-            col.conf['usedScheduler'] = 'anki.sched.Scheduler' if (col.conf['schedVer'] == 1) else 'anki.schedv2.Scheduler'
-            col.setMod()
-            col.save()
-            col.db.execute("update col set ver = 13")
-        except Exception as e:
-            print(e)
+        upgrade_to_rev13(col)
     if ver < 14:
-        col.db.executescript("""
-    PRAGMA foreign_keys=off;
-
-    BEGIN TRANSACTION;
-
-    ALTER TABLE revlog RENAME TO _revlog_old;
-
-    create table if not exists revlog (
-        id              integer primary key,
-        cid             integer not null,
-        usn             integer not null,
-        ease            integer not null,   
-        ivl             decimal not null,
-        lastIvl         decimal not null,
-        factor          integer not null,
-        time            integer not null,
-        type            integer not null,
-        due             integer not null,
-        day             integer not null
-    );
-
-    INSERT INTO revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type, due, day)
-    SELECT id, cid, usn, ease, ivl, lastIvl, factor, time, type, -1, -1
-    FROM _revlog_old;
-
-    COMMIT;
-
-    PRAGMA foreign_keys=on;
-                """)
-        col.db.execute('DROP TABLE IF EXISTS _revlog_old')
-        col.db.execute("update col set ver = 14")
+        upgrade_to_rev14(col)
     if ver < 15:
-        _upgrade_to_rev15(col)
-
-
-def _upgrade_to_rev15(col):
-    try:
-        col.db.execute('select ivl_dec from cards limit 1')
-        col.db.executescript("""
-    PRAGMA foreign_keys=off;
-
-    BEGIN TRANSACTION;
-
-    ALTER TABLE cards RENAME TO _cards_old;
-
-    create table if not exists cards (
-        id              integer primary key,   /* 0 */
-        nid             integer not null,      /* 1 */
-        did             integer not null,      /* 2 */
-        ord             integer not null,      /* 3 */
-        mod             integer not null,      /* 4 */
-        usn             integer not null,      /* 5 */
-        type            integer not null,      /* 6 */
-        queue           integer not null,      /* 7 */
-        due             integer not null,      /* 8 */
-        ivl             decimal not null,      /* 9 */
-        factor          integer not null,      /* 10 */
-        reps            integer not null,      /* 11 */
-        lapses          integer not null,      /* 12 */
-        left            integer not null,      /* 13 */
-        odue            integer not null,      /* 14 */
-        odid            integer not null,      /* 15 */
-        flags           integer not null,      /* 16 */
-        data            text not null,         /* 17 */
-        review_start_time  integer                /* 18 */
-    );
-
-    INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data, review_start_time)
-    SELECT id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data, null as review_start_time
-    FROM _cards_old;
-
-    COMMIT;
-
-    PRAGMA foreign_keys=on;
-                """)
-        col.db.execute('DROP TABLE IF EXISTS _cards_old')
-    except:
-        col.db.executescript("""
-    PRAGMA foreign_keys=off;
-
-    BEGIN TRANSACTION;
-
-    ALTER TABLE cards RENAME TO _cards_old;
-
-    create table if not exists cards (
-        id              integer primary key,   /* 0 */
-        nid             integer not null,      /* 1 */
-        did             integer not null,      /* 2 */
-        ord             integer not null,      /* 3 */
-        mod             integer not null,      /* 4 */
-        usn             integer not null,      /* 5 */
-        type            integer not null,      /* 6 */
-        queue           integer not null,      /* 7 */
-        due             integer not null,      /* 8 */
-        ivl             decimal not null,      /* 9 */
-        factor          integer not null,      /* 10 */
-        reps            integer not null,      /* 11 */
-        lapses          integer not null,      /* 12 */
-        left            integer not null,      /* 13 */
-        odue            integer not null,      /* 14 */
-        odid            integer not null,      /* 15 */
-        flags           integer not null,      /* 16 */
-        data            text not null,         /* 17 */
-        review_start_time   integer            /* 18 */
-    );
-
-    INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data, review_start_time)
-    SELECT id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data, null as review_start_time
-    FROM _cards_old;
-
-    COMMIT;
-
-    PRAGMA foreign_keys=on;
-                            """)
-        col.db.execute('DROP TABLE IF EXISTS _cards_old')
-    finally:
-        col.db.execute("update col set ver = 15")
+        upgrade_to_rev15(col)
 
 
 def _upgradeClozeModel(col, m):

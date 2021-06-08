@@ -57,3 +57,8 @@ $ dot callingGraph2.dot | display
 * a3f14d53b60ed3e65a9afc574d8277e87177c9de - Add a `review_start_time`
 * 4eaa877bfec959afe3af645df9250af872e76a45 - clear backlog of cards from the previous days
 * bc344f68e95ced9c9a9a5e5e4c05dc41d73f9063 "Fix a bug - new column was added in the previous commits"
+* 9ba412440720578c67a87d753794a9cf0f9a1823 - Extract the database schema migrations
+* 9c7d09ff561f1085407da150ef9dac1b76f9a38e - Update PytQt5 and add dependencies used later
+* c850ba5b9cc1f2aaa780252f4e8710ec6d77c37d - Add the initialFactors field in deck config and notes ids
+* 08a176b99dc939daf550f874555929a4df83173f - Add note types, setting it and calculating average per note types
+* 28440b1a4e3b639b59cd76fdec863510719b989b - Improve stats2

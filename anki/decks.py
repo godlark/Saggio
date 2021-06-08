@@ -56,6 +56,8 @@ defaultConf = {
         'delays': [1, 10],
         'ints': [1, 4, 7], # 7 is not currently used
         'initialFactor': STARTING_FACTOR,
+        ## TODO write tests for this field, and add tests for functionality of loading new fields to dConf
+        'initialFactors': {},
         'separate': True,
         'order': NEW_CARDS_DUE,
         'perDay': 20,

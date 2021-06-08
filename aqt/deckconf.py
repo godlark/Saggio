@@ -1,14 +1,22 @@
 # Copyright: Ankitects Pty Ltd and contributors
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+import json
 from operator import itemgetter
 
 from anki.consts import NEW_CARDS_RANDOM
+from anki.database.note_types import NoteTypes, NoteType
+from aqt.delegates.SpinBoxDelegate import SpinBoxDelegate
 from aqt.qt import *
 import aqt
 from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser, \
     tooltip, saveGeom, restoreGeom
 from anki.lang import _, ngettext
+
+
+
+ITEM_ID_ROLE = Qt.UserRole + 2
+
 
 class DeckConf(QDialog):
     def __init__(self, mw, deck):
@@ -167,43 +175,63 @@ class DeckConf(QDialog):
         self.conf = self.mw.col.decks.confForDid(self.deck['id'])
         # new
         c = self.conf['new']
-        f = self.form
-        f.lrnSteps.setText(self.listToUser(c['delays']))
-        f.lrnGradInt.setValue(c['ints'][0])
-        f.lrnEasyInt.setValue(c['ints'][1])
-        f.lrnEasyInt.setValue(c['ints'][1])
-        f.lrnFactor.setValue(c['initialFactor']/10.0)
-        f.newOrder.setCurrentIndex(c['order'])
-        f.newPerDay.setValue(c['perDay'])
-        f.bury.setChecked(c.get("bury", True))
-        f.newplim.setText(self.parentLimText('new'))
+        form = self.form
+        form.lrnSteps.setText(self.listToUser(c['delays']))
+        form.lrnGradInt.setValue(c['ints'][0])
+        form.lrnEasyInt.setValue(c['ints'][1])
+        form.lrnEasyInt.setValue(c['ints'][1])
+        form.lrnFactor.setValue(c['initialFactor']/10.0)
+        self.load_initial_factors()
+        form.newOrder.setCurrentIndex(c['order'])
+        form.newPerDay.setValue(c['perDay'])
+        form.bury.setChecked(c.get("bury", True))
+        form.newplim.setText(self.parentLimText('new'))
         # rev
         c = self.conf['rev']
-        f.revPerDay.setValue(c['perDay'])
-        f.easyBonus.setValue(c['ease4']*100)
-        f.fi1.setValue(c['ivlFct']*100)
-        f.maxIvl.setValue(c['maxIvl'])
-        f.revplim.setText(self.parentLimText('rev'))
-        f.buryRev.setChecked(c.get("bury", True))
-        f.hardFactor.setValue(int(c.get("hardFactor", 1.2)*100))
+        form.revPerDay.setValue(c['perDay'])
+        form.easyBonus.setValue(c['ease4']*100)
+        form.fi1.setValue(c['ivlFct']*100)
+        form.maxIvl.setValue(c['maxIvl'])
+        form.revplim.setText(self.parentLimText('rev'))
+        form.buryRev.setChecked(c.get("bury", True))
+        form.hardFactor.setValue(int(c.get("hardFactor", 1.2)*100))
         if self.mw.col.isFirstVersionSchedulerUsed():
-            f.hardFactor.setVisible(False)
-            f.hardFactorLabel.setVisible(False)
+            form.hardFactor.setVisible(False)
+            form.hardFactorLabel.setVisible(False)
         # lapse
         c = self.conf['lapse']
-        f.lapSteps.setText(self.listToUser(c['delays']))
-        f.lapMult.setValue(c['mult']*100)
-        f.lapMinInt.setValue(c['minInt'])
-        f.leechThreshold.setValue(c['leechFails'])
-        f.leechAction.setCurrentIndex(c['leechAction'])
+        form.lapSteps.setText(self.listToUser(c['delays']))
+        form.lapMult.setValue(c['mult']*100)
+        form.lapMinInt.setValue(c['minInt'])
+        form.leechThreshold.setValue(c['leechFails'])
+        form.leechAction.setCurrentIndex(c['leechAction'])
         # general
         c = self.conf
-        f.maxTaken.setValue(c['maxTaken'])
-        f.showTimer.setChecked(c.get('timer', 0))
-        f.autoplaySounds.setChecked(c['autoplay'])
-        f.replayQuestion.setChecked(c.get('replayq', True))
+        form.maxTaken.setValue(c['maxTaken'])
+        form.showTimer.setChecked(c.get('timer', 0))
+        form.autoplaySounds.setChecked(c['autoplay'])
+        form.replayQuestion.setChecked(c.get('replayq', True))
         # description
-        f.desc.setPlainText(self.deck['desc'])
+
+        ## TODO: Fix
+        form.desc.setPlainText(self.deck['desc'] + json.dumps(self.conf['new']['initialFactors']))
+
+    # TODO: write tests for this method
+    def load_initial_factors(self):
+        startingEases = self.form.startingEases
+
+        titles = [NoteType.select().where(NoteType.id == note_type_id)[0].title for note_type_id in self.conf['new']['initialFactors'].keys()]
+
+        startingEases.setRowCount(len(self.conf['new']['initialFactors'].keys()))
+        startingEases.setColumnCount(1)
+        startingEases.setItemDelegateForColumn(0, SpinBoxDelegate(130, 1000, 10))
+        startingEases.setVerticalHeaderLabels(titles)
+
+        for index, (key, value) in enumerate(self.conf['new']['initialFactors'].items()):
+            item = QTableWidgetItem()
+            item.setText((str(value/10)))
+            item.setData(ITEM_ID_ROLE, key)
+            startingEases.setItem(index, 0, item)
 
     def onRestore(self):
         self.mw.progress.start()
@@ -255,6 +283,13 @@ class DeckConf(QDialog):
         c['ints'][0] = f.lrnGradInt.value()
         c['ints'][1] = f.lrnEasyInt.value()
         c['initialFactor'] = f.lrnFactor.value()*10
+
+        initial_factors = {}
+        for row in range(self.form.startingEases.rowCount()):
+            key = self.form.startingEases.item(row, 0).data(ITEM_ID_ROLE)
+            initial_factors[key] = float(self.form.startingEases.item(row, 0).data(Qt.EditRole)) * 10
+        c['initialFactors'] = initial_factors
+
         c['order'] = f.newOrder.currentIndex()
         c['perDay'] = f.newPerDay.value()
         c['bury'] = f.bury.isChecked()

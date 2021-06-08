@@ -64,6 +64,8 @@ defaultTemplate = {
     'did': None,
     'bqfmt': "",
     'bafmt': "",
+    # TODO: Write tests for this
+    'note_type_id': None,
     # we don't define these so that we pick up system font size until set
     #'bfont': "Arial",
     #'bsize': 12,

@@ -17,6 +17,7 @@ class Toolbar:
             "browse": self._browseLinkHandler,
             "stats": self._statsLinkHandler,
             "stats2": self._stats2LinkHandler,
+            "noteTypes2": self._noteTypes2LinkHanlder,
         }
         self.web.setFixedHeight(30)
         self.web.requiresCol = False
@@ -37,6 +38,7 @@ class Toolbar:
             ["browse", _("Browse"), _("Shortcut key: %s") % "B"],
             ["stats", _("Stats"), _("Shortcut key: %s") % "T"],
             ["stats2", _("Stats2"), _("Shortcut key: %s") % "U"],
+            ["noteTypes2", _("noteTypes2"), _("Shortcut key: %s") % "N"],
         ]
         return self._linkHTML(links)
 
@@ -78,6 +80,9 @@ class Toolbar:
 
     def _stats2LinkHandler(self):
         self.mw.onStats2()
+
+    def _noteTypes2LinkHanlder(self):
+        self.mw.onNoteTypes2()
 
     # HTML & CSS
     ######################################################################

@@ -12,6 +12,8 @@ import platform
 from threading import Thread
 
 from send2trash import send2trash
+
+from aqt.note_types import NoteTypesWindow
 from aqt.qt import *
 from anki import Collection
 from anki.utils import isWin, isMac, intTime, splitFields, ids2str, \
@@ -844,6 +846,11 @@ QTreeWidget {
         if not deck:
             return
         dialog = Stats2Window(self, self.col, deck)
+        dialog.show()
+
+    # TODO: write test sfor this method
+    def onNoteTypes2(self):
+        dialog = NoteTypesWindow(self, self.col)
         dialog.show()
 
     def onPrefs(self):

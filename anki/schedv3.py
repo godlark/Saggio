@@ -10,6 +10,7 @@ import datetime
 
 from anki.cards import LEARNING_QUEUE, DUE_QUEUE, LEARN_DAY_QUEUE, NEW_QUEUE, NEW_CARD, DUE_CARD, RELEARNING_CARD, \
     LEARNING_CARD
+from anki.database.revision_answers import RevisionAnswer
 from anki.schedulers import register_scheduler
 from anki.utils import ids2str, intTime, fmtTimeSpan, is_the_same_day
 from anki.lang import _
@@ -45,6 +46,11 @@ CUSTOM_SORT = SHOW_YOUNG_FIRST
 # CUSTOM_SORT = SHOW_LOW_REPS_FIRST
 # CUSTOM_SORT = SHOW_HIGH_REPS_FIRST
 # CUSTOM_SORT = SORT_BY_OVERDUES
+
+
+EASY_LOWER = 0.95
+GOOD_LOWER = 0.85
+HARD_LOWER = 0.75
 
 
 @register_scheduler("Scheduler v3")
@@ -739,13 +745,18 @@ did = ? and queue = 3 and due <= ? limit ?""",
             if card.factor:
                 ideal *= math.sqrt(card.factor/1000)
             else:
-                ideal *= math.sqrt(conf['initialFactor']/1000)
+                ideal *= math.sqrt(self._get_initial_factor(conf, card)/1000)
         else:
             # early remove
             ideal = conf['ints'][1]
         if fuzz:
             ideal = self._fuzzedIvl(ideal)
         return ideal
+
+    @staticmethod
+    def _get_initial_factor(conf, card):
+        note_type_id = card.template()['note_type_id']
+        return conf['initialFactors'].get(note_type_id, STARTING_FACTOR)
 
     def _fuzz_value(self, min, max, expected):
         if self.getFuzz():
@@ -755,7 +766,7 @@ did = ? and queue = 3 and due <= ? limit ?""",
 
     def _rescheduleNew(self, card, conf, early):
         "Reschedule a new card that's graduated for the first time."
-        card.factor = self._fuzz_value(0.8, 1.2, conf['initialFactor'])
+        card.factor = self._fuzz_value(0.8, 1.2, self._get_initial_factor(conf, card))
         card.factor = round(card.factor)
         card.factor = min(card.factor, 10000)
         card.factor = max(card.factor, 1300)
@@ -992,6 +1003,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         due = self._getDue(card)
         card.lastFactor = card.factor
         card.lastIvl = card.ivl
+        predicted_ease = Scheduler.calculate_predicted_ease(card.ivl, self.days_from_last_revision(card))
         if not early:
             # We shouldn't update any factors when early review happens
             card.ivl, card.factor = self._get_new_ivl_and_factor(card, ease)
@@ -1003,7 +1015,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         else:
             self._rescheduleRev(card, ease, early)
 
-        self.logRev(self.col, card, ease, delay, revision_type, due)
+        self.logRev(self.col, card, ease, delay, revision_type, due, predicted_ease, early, self._get_rollover())
 
     def _get_new_ivl_and_factor(self, card, ease):
         last_factor = card.factor
@@ -1053,45 +1065,26 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         # TODO: Make it decimal
         curr_ivl = max(1000 / card.factor, card.ivl)
 
-        # R = e ** (-k * t/S)
-        # R for t == s should be `good` == 0.90
-        # Therefor -k = ln(0.90)
-
-        easy_lower = 0.95
-        good_lower = 0.85
-        hard_lower = 0.75
-
-        k = math.log(2 / (easy_lower + good_lower))
-
-        delayed_by = self._daysLate(card)
-        total_time = curr_ivl + delayed_by
-        predicted_R = math.exp(-k * total_time / curr_ivl)
-
-        if predicted_R > easy_lower:
-            predicted_ease = 4
-        elif predicted_R > good_lower:
-            predicted_ease = 3
-        elif predicted_R > hard_lower:
-            predicted_ease = 2
-        else:
-            predicted_ease = 1
+        k = self.calculate_K()
+        total_time = self.days_from_last_revision(card)
+        predicted_ease = self.calculate_predicted_ease(curr_ivl, total_time)
 
         if predicted_ease == ease:
             return card.factor
         elif predicted_ease > ease:
             if ease == 3:
-                p = math.log(easy_lower)
+                p = math.log(EASY_LOWER)
             elif ease == 2:
-                p = math.log(good_lower)
+                p = math.log(GOOD_LOWER)
             else:  # ease == 1
-                p = math.log(hard_lower)
+                p = math.log(HARD_LOWER)
         else:  # predicted_ease < ease:
             if ease == 4:
-                p = math.log(easy_lower)
+                p = math.log(EASY_LOWER)
             elif ease == 3:
-                p = math.log(good_lower)
+                p = math.log(GOOD_LOWER)
             else:  # ease == 2:
-                p = math.log(hard_lower)
+                p = math.log(HARD_LOWER)
         # p = -k * total_time / corrected_ivl
         corrected_ivl = -k * total_time / p
 
@@ -1101,6 +1094,32 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         factor = max(1300, factor)
         factor = min(10000, factor)
         return factor
+
+    # TODO: write tests for this method
+    @staticmethod
+    def calculate_K():
+        # R = e ** (-k * t/S)
+        # R for t == s should be `good` == 0.90
+        # Therefor -k = ln(0.90)
+        return math.log(2 / (EASY_LOWER + GOOD_LOWER))
+
+    # TODO: write tests for this method
+    @staticmethod
+    def calculate_predicted_ease(curr_ivl, days_from_last_revision):
+        K = Scheduler.calculate_K()
+        predicted_R = math.exp(-K * days_from_last_revision / curr_ivl)
+        if predicted_R > EASY_LOWER:
+            predicted_ease = 4
+        elif predicted_R > GOOD_LOWER:
+            predicted_ease = 3
+        elif predicted_R > HARD_LOWER:
+            predicted_ease = 2
+        else:
+            predicted_ease = 1
+        return predicted_ease
+
+    def days_from_last_revision(self, card):
+        return card.ivl + self._daysLate(card)
 
     def _get_next_ivl(self, card, ivl, factor, last_factor, ease, fuzz=True):
         if ease == 1:
@@ -1146,14 +1165,25 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         # card leaves filtered deck
         self._removeFromFiltered(card)
 
+    # TODO: write tests for this method
     @staticmethod
-    def logRev(col, card, ease, delay, type, due):
+    def logRev(col, card, ease, delay, type, due, predicted_ease, early, rollover_hour):
         def log():
             col.db.execute(
                 "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, col.usn(), ease,
                 card.ivl if delay is None else delay, card.lastIvl, card.factor, card.timeTaken(),
                 type, due, Scheduler.daysSinceCreation(col))
+            RevisionAnswer.create(expected_ease=predicted_ease,
+                                  chosen_ease=ease,
+                                  card_due=due,
+                                  card_new_ivl=card.ivl,
+                                  card_old_ivl=card.lastIvl,
+                                  card_new_factor=card.factor,
+                                  card_old_factor=card.lastFactor,
+                                  time_taken=card.timeTaken(),
+                                  early=early,
+                                  rollover_hour=rollover_hour)
         try:
             log()
         except:
@@ -1393,6 +1423,7 @@ where id = ?
         return self.col.decks.confForDid(card.did)
 
     def _newConf(self, card):
+        # TODO: sladom, write tests for `initialFactors`
         conf = self._cardConf(card)
         # normal deck
         if not card.odid:
@@ -1403,6 +1434,7 @@ where id = ?
             # original deck
             ints=oconf['new']['ints'],
             initialFactor=oconf['new']['initialFactor'],
+            initialFactors=oconf['new']['initialFactors'],
             bury=oconf['new'].get("bury", True),
             delays=oconf['new']['delays'],
             # overrides

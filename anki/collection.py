@@ -13,6 +13,12 @@ import copy
 import traceback
 import json
 
+from peewee import SqliteDatabase
+from peewee_migrate import Router
+
+from anki.database.base import BaseModel
+from anki.database.note_types import NoteType
+from anki.database.revision_answers import RevisionAnswer
 from anki.lang import _, ngettext
 from anki.schedulers import SCHEDULERS
 from anki.schedv2 import Scheduler
@@ -53,6 +59,21 @@ defaultConf = {
 }
 
 
+def init_peewee_database(collection_old_db_path):
+    # TODO: write tests for this
+    directory = os.path.dirname(collection_old_db_path)
+    database = SqliteDatabase(os.path.join(directory, 'collection_new.sqlite3'))
+    database.bind([NoteType, RevisionAnswer])
+
+
+def run_migrations(collection_old_db_path):
+    # TODO: write tests for this
+    migrations_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "database/migrations")
+    directory = os.path.dirname(collection_old_db_path)
+    router = Router(SqliteDatabase(os.path.join(directory, 'collection_new.sqlite3')), migrations_dir)
+    router.run()
+
+
 # this is initialized by storage.Collection
 class _Collection:
 
@@ -60,6 +81,11 @@ class _Collection:
         self._debugLog = log
         self.db = db
         self.path = db._path
+
+        # TODO: write tests for this
+        init_peewee_database(self.path)
+        run_migrations(self.path)
+
         self._openLog()
         self.log(self.path, anki.version)
         self.server = server

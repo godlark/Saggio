@@ -5,6 +5,8 @@
 import collections
 import re
 
+from anki.database.note_types import NoteTypes
+from aqt.note_types import NoteTypeModel
 from aqt.qt import *
 from anki.consts import *
 import aqt
@@ -28,6 +30,7 @@ class CardLayout(QDialog):
         self.note = note
         self.ord = ord
         self.col = self.mw.col
+        self.note_types = NoteTypes()
         self.mm = self.mw.col.models
         self.model = note.model()
         self.mw.checkpoint(_("Card Types"))
@@ -161,6 +164,12 @@ class CardLayout(QDialog):
             tform.tlayout3.setContentsMargins(0, 11, 0, 0)
         tform.groupBox_3.setTitle(_(
             "Styling (shared between cards)"))
+
+        # TODO: Write tests for this
+        tform.comboBox.setModel(NoteTypeModel(self, self.note_types))
+        tform.comboBox.setModelColumn(1)
+        tform.comboBox.currentIndexChanged.connect(self.saveCard)
+
         tform.front.textChanged.connect(self.saveCard)
         tform.css.textChanged.connect(self.saveCard)
         tform.back.textChanged.connect(self.saveCard)
@@ -259,6 +268,7 @@ Please create a new card type first."""))
         t = self.card.template()
         self.redrawing = True
         self.tform.front.setPlainText(t['qfmt'])
+        self.tform.comboBox.setCurrentIndex(self.tform.comboBox.findData(t.get('note_type_id', 1), Qt.UserRole+1))
         self.tform.css.setPlainText(self.model['css'])
         self.tform.back.setPlainText(t['afmt'])
         self.tform.front.setAcceptRichText(False)
@@ -274,10 +284,19 @@ Please create a new card type first."""))
             return
         text = self.tform.front.toPlainText()
         self.card.template()['qfmt'] = text
+
         text = self.tform.css.toPlainText()
         self.card.model()['css'] = text
+
         text = self.tform.back.toPlainText()
         self.card.template()['afmt'] = text
+
+        # TODO: Write tests for this
+        current_note_type_row = self.tform.comboBox.currentIndex()
+        current_note_type_id_index = self.tform.comboBox.model().index(current_note_type_row, 0)
+        current_note_type_id = self.tform.comboBox.model().data(current_note_type_id_index, Qt.UserRole+1)
+        self.card.template()['note_type_id'] = current_note_type_id
+
         self.renderPreview()
 
     # Preview

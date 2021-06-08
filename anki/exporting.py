@@ -164,7 +164,7 @@ class AnkiExporter(Exporter):
             row = list(row)
             row[-2] = 0
         self.dst.db.executemany(
-            "insert into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "insert into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             data)
         # notes
         strnids = ids2str(list(nids.keys()))

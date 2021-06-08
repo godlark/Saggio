@@ -283,7 +283,8 @@ create table if not exists cards (
     odue            integer not null,      /* 14 */
     odid            integer not null,      /* 15 */
     flags           integer not null,      /* 16 */
-    data            text not null          /* 17 */
+    data            text not null,         /* 17 */
+    review_start_time   integer            /* 18 */
 );
 
 create table if not exists revlog (

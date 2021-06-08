@@ -12,6 +12,8 @@ from anki.storage_migrations.rev12 import upgrade_to_rev12
 from anki.storage_migrations.rev13 import upgrade_to_rev13
 from anki.storage_migrations.rev14 import upgrade_to_rev14
 from anki.storage_migrations.rev15 import upgrade_to_rev15
+from anki.storage_migrations.rev16 import upgrade_to_rev16
+from anki.storage_migrations.rev17 import upgrade_to_rev17
 from anki.utils import intTime, isWin
 from anki.db import DB
 from anki.collection import _Collection
@@ -195,6 +197,10 @@ update cards set left = left + left*1000 where queue = 1""")
         upgrade_to_rev14(col)
     if ver < 15:
         upgrade_to_rev15(col)
+    if ver < 16:
+        upgrade_to_rev16(col)
+    if ver < 18:
+        upgrade_to_rev17(col)
 
 
 def _upgradeClozeModel(col, m):

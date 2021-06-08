@@ -4,9 +4,15 @@ pyaudio
 requests
 decorator
 markdown
-PyQtChart==5.11.*
+matplotlib
+pandas
+peewee==3.*
+peewee-migrate==1.4.0
+PyQtChart==5.15.*
+pyqtgraph==0.12.*
 PyQt5-sip
-PyQt5==5.11.*
+PyQt5==5.15.*
+PyQtWebEngine==5.15.*
 aiohttp
 psutil; sys_platform == "win32"
 distro; sys_platform != "win32" and sys_platform != "darwin"

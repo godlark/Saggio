@@ -161,7 +161,7 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QSpinBox" name="lrnCutoff">
+          <widget class="QDoubleSpinBox" name="lrnCutoff">
            <property name="maximumSize">
             <size>
              <width>60</width>
@@ -188,7 +188,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QSpinBox" name="timeLimit">
+          <widget class="QDoubleSpinBox" name="timeLimit">
            <property name="maximum">
             <number>9999</number>
            </property>

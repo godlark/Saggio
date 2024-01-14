@@ -6,6 +6,7 @@ decorator
 markdown
 matplotlib
 pandas
+# for macos, brew install portaudio
 peewee==3.*
 peewee-migrate==1.4.0
 PyQtChart==5.15.*

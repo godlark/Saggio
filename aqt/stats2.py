@@ -124,13 +124,14 @@ class Stats2Window(QMainWindow):
         self.layout.addWidget(chartview)
 
     def _create_expected_answered_ease_heatmap(self):
-        chosen_ease = ['1', '2', '3', '4']
-        expected_ease = ['1', '2', '3']
+        chosen_ease = [1, 2, 3, 4]
+        expected_ease = [1, 2, 3]
+        whole_index = pandas.MultiIndex.from_product([expected_ease, chosen_ease], names=['expected_ease', 'chosen_ease'])
 
         answers = [[t.expected_ease, t.chosen_ease] for t in RevisionAnswer.select(RevisionAnswer.expected_ease, RevisionAnswer.chosen_ease)]
-        df = pandas.DataFrame(answers, columns=['expected_ease', 'chosen_ease']).groupby(['expected_ease', 'chosen_ease']).size().unstack(fill_value=0)
+        df = pandas.DataFrame(answers, columns=['expected_ease', 'chosen_ease']).groupby(['expected_ease', 'chosen_ease']).size()\
+            .reindex(index=whole_index, fill_value=0).unstack()
         mat = df.to_numpy()
-        print(mat)
 
         mw = MatplotlibWidget()
         fig = mw.getFigure()

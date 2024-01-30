@@ -1,7 +1,9 @@
 from collections import defaultdict
+from datetime import timedelta, datetime, date
 
 import numpy
 import pandas
+import peewee
 import pyqtgraph
 from PyQt5.QtChart import QLineSeries, QChart, QChartView, QBarSeries, QBarSet, QStackedBarSeries, QBarCategoryAxis
 from PyQt5.QtCore import QPointF, Qt
@@ -10,10 +12,21 @@ from PyQt5.QtWidgets import QMainWindow, QGridLayout, QWidget
 from matplotlib import pyplot
 from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
 
+from anki.database.learning_answers import LearningAnswer
 from anki.database.revision_answers import RevisionAnswer
 from anki.lang import _
 from anki.stats import CollectionStats
 from anki.utils import ids2str
+
+R_OLD = 'relearning old'
+
+R_MATURE = 'relearning mature'
+
+R_ADOLESCENT = 'relearning adolescent'
+
+R_YOUNG = 'relearning young'
+
+LEARNING = 'learning'
 
 
 class Stats2Window(QMainWindow):
@@ -31,6 +44,7 @@ class Stats2Window(QMainWindow):
 
         self._create_reviews_due_chart()
         self._create_revision_count_graph()
+        self._create_learned_count_graph()
         self._create_expected_answered_ease_heatmap()
 
     def _create_reviews_due_chart(self):
@@ -78,7 +92,63 @@ class Stats2Window(QMainWindow):
 
         self.layout.addWidget(chartview)
 
+    def _create_learned_count_graph(self):
+        card_categories = [LEARNING, R_YOUNG, R_ADOLESCENT, R_MATURE, R_OLD]
+        days_past = 10
+        filter_day = date.today() - timedelta(days=days_past - 1)
+
+        dates_past = [pandas.to_datetime(filter_day + timedelta(days=i)) for i in range(days_past)]
+        whole_index = pandas.MultiIndex.from_product([card_categories, dates_past], names=['category', 'date'])
+
+        query = LearningAnswer \
+            .select(peewee.fn.Count().alias('ct'),
+                    peewee.fn.strftime('%d-%m-%Y', LearningAnswer.datetime).alias('date'), LearningAnswer.card_old_ivl) \
+            .where(LearningAnswer.card_due_in > timedelta())\
+            .group_by(peewee.fn.strftime('%d-%m-%Y', LearningAnswer.datetime), LearningAnswer.card_old_ivl) \
+            .dicts()
+        df = pandas.DataFrame([row for row in query])
+        df['date'] = pandas.to_datetime(df['date'], dayfirst=True)
+        df['category'] = df['card_old_ivl'].apply(Stats2Window.categorize_learning_ivl)
+        df = df[df['date'] >= pandas.to_datetime(filter_day)]
+        df_grouped = df.groupby(['category', 'date'])['ct'].sum()
+
+        print(df_grouped)
+
+        df_final = df_grouped.reindex(index=whole_index, fill_value=0)
+
+        series = QStackedBarSeries(self)
+        categories = QBarCategoryAxis()
+        categories.setCategories([d.strftime('%b %d') for d in dates_past])
+
+        values_for_bars = {card_category: df_final[df_final.index.get_level_values('category') == card_category] for card_category in card_categories}
+        bars = {card_category: QBarSet(card_category, self) for card_category in card_categories}
+
+        for card_category in card_categories:
+            [bars[card_category].append(value) for value in values_for_bars[card_category]]
+            series.append(bars[card_category])
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.createDefaultAxes()
+        chart.setAxisX(categories, series)
+
+        chart.setAnimationOptions(QChart.SeriesAnimations)
+        chart.setTitle("Number of (re)learned cards in the past")
+
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignBottom)
+
+        chartview = QChartView(chart)
+        chartview.setRenderHint(QPainter.Antialiasing)
+
+        self.layout.addWidget(chartview)
+
     def _create_revision_count_graph(self):
+        k = RevisionAnswer\
+            .select(peewee.fn.Count().alias('ct'), peewee.fn.strftime('%d-%m-%Y', RevisionAnswer.datetime).alias('date'), RevisionAnswer.card_old_ivl)\
+            .group_by(peewee.fn.strftime('%d-%m-%Y', RevisionAnswer.datetime), RevisionAnswer.card_old_ivl)\
+            .dicts()
+
         stats = CollectionStats(self.col)
 
         categories_labels = list(range(-30, 1, 1))
@@ -163,3 +233,20 @@ class Stats2Window(QMainWindow):
     def _add_default_value_for_missing_keys(self, data, default_value, keys):
         data = defaultdict(lambda: default_value, data)
         return [data[key] for key in keys]
+
+    @staticmethod
+    def categorize_learning_ivl(ivl):
+        if ivl == 0:
+            return LEARNING
+        if ivl < 21:
+            return R_YOUNG
+        if ivl < 90:
+            return R_ADOLESCENT
+        if ivl < 365:
+            return R_MATURE
+        return R_OLD
+
+    @staticmethod
+    def last_x_days(format, n):
+        today = datetime.now()
+        return [(today - timedelta(i)).strftime(format) for i in range(n)]

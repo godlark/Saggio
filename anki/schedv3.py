@@ -10,6 +10,7 @@ import datetime
 
 from anki.cards import LEARNING_QUEUE, DUE_QUEUE, LEARN_DAY_QUEUE, NEW_QUEUE, NEW_CARD, DUE_CARD, RELEARNING_CARD, \
     LEARNING_CARD
+from anki.database.learning_answers import LearningAnswer
 from anki.database.revision_answers import RevisionAnswer
 from anki.schedulers import register_scheduler
 from anki.utils import ids2str, intTime, fmtTimeSpan, is_the_same_day
@@ -783,6 +784,16 @@ did = ? and queue = 3 and due <= ? limit ?""",
                 "insert into revlog values (?,?,?,?,?,?,?,?,?,?,?)",
                 int(time.time()*1000), card.id, self.col.usn(), ease,
                 ivl, lastIvl, card.factor, card.timeTaken(), type, 0, self.today)
+            due_in = datetime.timedelta(days=card.ivl) if leaving else datetime.timedelta(seconds=self._delayForGrade(conf, card.left))
+            LearningAnswer.create(
+                card_id=card.id,
+                chosen_ease=ease,
+                card_old_ivl=getattr(card, 'lastIvl', 0),
+                card_old_factor=getattr(card, 'lastFactor', STARTING_FACTOR),
+                card_due_in=due_in,
+                time_taken=card.timeTaken(),
+                rollover_hour=self._get_rollover()
+            )
         try:
             log()
         except:
@@ -1045,7 +1056,7 @@ select id from cards where did in %s and queue = 2 and due <= ? limit ?)"""
         return ivl, factor
 
     def _increaseIvl(self, lastFactor, factor, ivl):
-        # TODO: Depends on card.lastFactor
+        # TODO: Depends on card.lastSTARTING_FACTOR
         # It's done this way because on early stages it's more probably that we already know the card
         # than the card is easy
         max_ivl = 1024

@@ -5,7 +5,8 @@ from anki.database.base import BaseModel
 
 
 class RevisionAnswer(BaseModel):
-    datetime = DateTimeField(null=False, default=datetime.datetime.now)
+    datetime = IntegerField(null=False, default=lambda: datetime.datetime.now().timestamp() // 1)
+    card_id = IntegerField(null=True)
     expected_ease = IntegerField(null=False)
     chosen_ease = IntegerField(null=False)
     card_due = DateField(null=False)

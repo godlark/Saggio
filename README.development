@@ -118,4 +118,4 @@ Make sure to specify pyqt5 version 5.9.2, as the latest version 5.10 is not curr
 Now you can follow the development commands at the start of this document.
 
 ## Creating migrations
-pw_migrate create --auto --auto-source anki.database --database="sqlite:////home/sdomagala/.local/share/Anki2/Użytkownik 1/collection_new.sqlite3" Super --directory anki/database/migrations/
+Modify and run file anki/database/create_migration.py

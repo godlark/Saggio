@@ -142,7 +142,7 @@ class AnkiExporter(Exporter):
 
     def exportInto(self, path):
         # sched info+v2 scheduler not compatible w/ older clients
-        self._v2sched = not self.col.isFirstVersionSchedulerUsed() and self.includeSched
+        self._v2sched = not self.col.isFirstVersionSchedulerUsed()
 
         # create a new collection at the target
         try:
@@ -159,12 +159,14 @@ class AnkiExporter(Exporter):
         for row in self.src.db.execute(
             "select * from cards where id in "+ids2str(cids)):
             nids[row[1]] = True
+            row = row[:-1]
             data.append(row)
             # clear flags
             row = list(row)
             row[-2] = 0
+        self.dst.db.execute('alter table cards drop column review_start_time')
         self.dst.db.executemany(
-            "insert into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "insert into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             data)
         # notes
         strnids = ids2str(list(nids.keys()))
@@ -250,6 +252,7 @@ class AnkiExporter(Exporter):
         # todo: tags?
         self.count = self.dst.cardCount()
         self.dst.setMod()
+        self.dst.db.execute("update col set ver = 11")
         self.postExport()
         self.dst.close()
 
@@ -298,7 +301,7 @@ class AnkiPackageExporter(AnkiExporter):
             z.write(colfile, "collection.anki2")
         else:
             # fixme: remove in the future
-            raise Exception("Please switch to the normal scheduler before exporting a single deck with scheduling information.")
+            #raise Exception("Please switch to the normal scheduler before exporting a single deck with scheduling information.")
 
             # prevent older clients from accessing
             # pylint: disable=unreachable

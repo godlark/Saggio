@@ -287,15 +287,15 @@ and no other programs are accessing your profile folders, then try again."""))
     def _defaultBase(self):
         if isWin:
             from aqt.winpaths import get_appdata
-            return os.path.join(get_appdata(), "Anki2")
+            return os.path.join(get_appdata(), "Saggio")
         elif isMac:
-            return os.path.expanduser("~/Library/Application Support/Anki2")
+            return os.path.expanduser("~/Library/Application Support/Saggio")
         else:
             dataDir = os.environ.get(
                 "XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
             if not os.path.exists(dataDir):
                 os.makedirs(dataDir)
-            return os.path.join(dataDir, "Anki2")
+            return os.path.join(dataDir, "Saggio")
 
     def _loadMeta(self):
         opath = os.path.join(self.base, "prefs.db")

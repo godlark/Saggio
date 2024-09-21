@@ -170,10 +170,8 @@ class AnkiApp(QApplication):
 
     appMsg = pyqtSignal(str)
 
-    KEY = "saggio"+checksum(getpass.getuser())
+    KEY = "anki"+checksum(getpass.getuser())
     TMOUT = 30000
-
-    # create table notetypes(id int, name text, mtime_secs int, usn int, config text);
 
     def __init__(self, argv):
         QApplication.__init__(self, argv)
